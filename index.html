@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Unsafe Night Navigation MVP</title>
+    
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiVW5zYWZlIE5pZ2h0IE5hdmlnYXRpb24iLCJzaG9ydF9uYW1lIjoiVW5zYWZlTmF2Iiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYjBmMTkiLCJ0aGVtZV9jb2xvciI6IiMwYjBmMTkiLCJpY29ucyI6W3sic3JjIjoiZGF0YTppbWFnZS9zdmcreG1sLDxzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgMTAwIDEwMCc+PHRleHQgeT0nLjllJyBmb250LXNpemU9JzkwJz7wn5qXPC90ZXh0Pjwvc3ZnPiIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==">
+    
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        .sos-btn { position: fixed; bottom: calc(5.5rem + env(safe-area-inset-bottom)); right: 1.5rem; width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color: white; font-weight: 800; font-size: 1.25rem; border: 4px solid rgba(255, 255, 255, 0.2); box-shadow: 0 0 30px rgba(239, 68, 68, 0.6); cursor: pointer; z-index: 100; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; animation: pulse-red 2s infinite; }
+        .sos-btn:hover { transform: scale(1.1); box-shadow: 0 0 40px rgba(239, 68, 68, 0.8); }
+        .voice-btn { position: fixed; bottom: calc(11rem + env(safe-area-inset-bottom)); right: 2rem; width: 50px; height: 50px; border-radius: 50%; background: rgba(59,130,246,0.2); border: 2px solid rgba(59,130,246,0.8); color: white; font-size: 1.5rem; cursor: pointer; z-index: 100; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; backdrop-filter: blur(5px); }
+        .voice-btn:hover { background: rgba(59,130,246,0.4); transform: scale(1.1); }
+        .voice-btn.listening { animation: pulse-blue 1s infinite; background: rgba(59,130,246,0.6); }
+
+        .sos-active-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(239, 68, 68, 0.2); backdrop-filter: blur(5px); z-index: 99; display: flex; align-items: center; justify-content: center; flex-direction: column; animation: fadeIn 0.3s ease; }
+        .sos-countdown { font-size: 8rem; font-weight: 900; color: #ef4444; text-shadow: 0 0 20px rgba(239, 68, 68, 0.8); animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.3s ease; }
+        .modal { background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 2rem; border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); animation: slideInUp 0.3s ease; }
+        .hazard-option { padding: 1rem; margin: 0.5rem 0; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 1rem; font-weight: 600; }
+        .hazard-option:hover { background: rgba(59, 130, 246, 0.2); border-color: var(--accent); }
+        .progress-container { width: 100%; background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; margin-top: 4px; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .safe-haven { position: absolute; font-size: 1.5rem; filter: drop-shadow(0 0 10px rgba(59,130,246,0.8)); animation: pulse-glow 2s infinite; z-index: 15; }
+        
+        @keyframes pulse-glow { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(59,130,246,0.8)); } 50% { transform: scale(1.2); filter: drop-shadow(0 0 20px rgba(59,130,246,1)); } }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+        @keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }
+        
+        .sim-control { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 0.5rem; border-radius: 8px; font-family: inherit; }
+        .nav-view { height: 80vh; border-radius: 20px; overflow: hidden; position: relative; }
+        .green-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; box-shadow: 0 0 10px #10b981; animation: pulse-glow 2s infinite; }
+        
+        .ar-video-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; opacity: 0.6; }
+        .ar-active .app-container { background: rgba(15, 23, 42, 0.5); }
+        .ar-active .glass-panel { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); }
+        .ar-active .map-container { background: transparent; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>window.OPENWEATHER_API_KEY = "YOUR_OPENWEATHERMAP_API_KEY";</script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+
+    <script>
+const Translations = {
+    en: {
+        title: "Unsafe Night Navigation", subtitle: "Intelligent Routing with Real-time Safety Scoring",
+        startLabel: "Starting Point", destLabel: "Destination",
+        btnFind: "Find Safe Route", btnFinding: "Analyzing Routes...",
+        routeOptions: "Route Options", liveMap: "Live Map",
+        newSearch: "New Search", safeHavens: "Safe Havens",
+        shareTrip: "Share Trip", startNav: "Start Nav",
+        contacts: "Emergency Contacts Synced", endTrip: "End Trip ⏹",
+        reportHazard: "Report Hazard"
+    },
+    hi: {
+        title: "असुरक्षित रात नेविगेशन", subtitle: "रीयल-टाइम सुरक्षा स्कोरिंग के साथ इंटेलिजेंट रूटिंग",
+        startLabel: "शुरुआती बिंदु", destLabel: "मंज़िल",
+        btnFind: "सुरक्षित रास्ता खोजें", btnFinding: "रास्ते खोज रहे हैं...",
+        routeOptions: "रास्ते के विकल्प", liveMap: "लाइव मैप",
+        newSearch: "नई खोज", safeHavens: "सुरक्षित स्थान",
+        shareTrip: "ट्रिप शेयर करें", startNav: "नेविगेट करें",
+        contacts: "इमरजेंसी कॉन्टैक्ट्स सिंक हुए", endTrip: "ट्रिप खत्म करें ⏹",
+        reportHazard: "खतरा रिपोर्ट करें"
+    }
+};
+
+function calcSafetyScore(L, C, R, V, travelMode) {
+    let modeMultiplier = 1;
+    if (travelMode === 'walking') modeMultiplier = 1.6;
+    if (travelMode === 'cycling') modeMultiplier = 1.3;
+    const penalty = ((30 * L) + (40 * C) + (25 * R) + (40 * V)) * modeMultiplier;
+    return Math.max(0, 100 - penalty);
+}
+
+function getScoreStatus(score) {
+    if (score >= 80) return 'safe';
+    if (score >= 50) return 'moderate';
+    return 'danger';
+}
+
+function getBaseMockRoutes() {
+    return [
+        { id: 'm1', name: "Main Highway Route", distance: "12.5 km", time: "25 mins", baseL: 0, baseC: 0, baseR: 0, baseV: 0, addedHazards: [], isMock: true },
+        { id: 'm2', name: "City Center Shortcut", distance: "10.2 km", time: "32 mins", baseL: 0, baseC: 1, baseR: 0, baseV: 0, addedHazards: [], isMock: true },
+        { id: 'm3', name: "Outer Ring Road", distance: "15.0 km", time: "28 mins", baseL: 1, baseC: 0, baseR: 0, baseV: 0, addedHazards: [], isMock: true }
+    ];
+}
+
+function applySimulator(route, simTime, simWeather, travelMode) {
+    let L = route.baseL; let C = route.baseC; let R = route.baseR; let V = route.baseV;
+    let extraHazards = [];
+
+    if (simTime === 'night') { L = 1; }
+    
+    if (simWeather === 'rain') { R = 1; V = 1; extraHazards.push("🌧️ Rain"); }
+    else if (simWeather === 'fog') { V = 2; extraHazards.push("🌫️ Dense Fog"); }
+    else if (simWeather === 'snow') { R = 1; C = 1; extraHazards.push("❄️ Snow / Slippery"); }
+    else if (simWeather === 'storm') { R = 1; V = 2; L = 1; extraHazards.push("⛈️ Thunderstorm"); }
+
+    const score = Math.floor(calcSafetyScore(L, C, R, V, travelMode));
+    const status = getScoreStatus(score);
+    const hazards = [...extraHazards];
+    if (L === 1 && !hazards.includes("⛈️ Thunderstorm")) hazards.push("🌑 Dark Zone");
+    if (C === 1 && !hazards.includes("❄️ Snow / Slippery")) hazards.push("🚧 Construction");
+    
+    if (route.addedHazards) hazards.push(...route.addedHazards);
+
+    return { ...route, score, status, hazards, L, C, R, V };
+}
+
+window.SafetyLogic = { calcSafetyScore, getScoreStatus, getBaseMockRoutes, applySimulator, Translations };
+    </script>
+    
+    <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const playWarningAlarm = () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.type = 'square'; osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.setValueAtTime(800, ctx.currentTime + 0.2);
+        osc.frequency.setValueAtTime(600, ctx.currentTime + 0.4);
+        osc.frequency.setValueAtTime(800, ctx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.8);
+    } catch(e) { }
+};
+
+const speakWarning = (status, hazards, lang) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    if (status === 'safe') return;
+    
+    playWarningAlarm();
+    
+    if (navigator.vibrate) {
+        if (status === 'danger') navigator.vibrate([200, 200, 200]);
+        else navigator.vibrate(100);
+    }
+
+    let text = "";
+    const cleanHazards = hazards.map(h => h.replace(/[^a-zA-Z\s]/g, '').trim());
+    
+    if (lang === 'hi') {
+        text = status === 'danger' ? "चेतावनी। यह रास्ता सुरक्षित नहीं है। खतरे हैं: " : "सावधानी बरतें। खतरे हैं: ";
+        const translatedHazards = cleanHazards.map(h => {
+            if(h.includes('Dark')) return 'अंधेरा'; if(h.includes('Construction')) return 'निर्माण कार्य';
+            if(h.includes('Rain')) return 'बारिश'; if(h.includes('Fog')) return 'धुंध';
+            if(h.includes('Snow')) return 'बर्फ'; if(h.includes('Storm')) return 'तूफ़ान';
+            return h;
+        }).join(", ");
+        text += translatedHazards;
+    } else {
+        text = status === 'danger' ? "Warning. High risk route. Hazards: " : "Caution advised. Hazards: ";
+        text += cleanHazards.join(", ");
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-US';
+    utterance.rate = 0.9;
+    setTimeout(() => { window.speechSynthesis.speak(utterance); }, 800);
+};
+
+const RouteCard = ({ route, isRecommended, isSelected, onClick }) => {
+    const { name, distance, time, score, status, hazards, L, C, R, V } = route;
+    const [showAnalytics, setShowAnalytics] = useState(false);
+    
+    const lightingScore = L > 0 ? 20 : 100;
+    const roadScore = C > 0 ? 40 : 100;
+    const weatherScore = (R > 0 || V > 0) ? (V > 1 ? 10 : 40) : 100;
+
+    return (
+        <div className={`glass-panel route-card ${isSelected ? 'selected' : ''}`} onClick={onClick}>
+            {isRecommended && <div className="recommended-badge">Recommended ✅</div>}
+            <div className="route-header">
+                <h3 className="route-title">{name}</h3>
+                <div className={`score-badge ${status}`}>{score} / 100</div>
+            </div>
+            <div className="route-stats">
+                <div className="stat-item"><span>🚗</span><span>{distance}</span></div>
+                <div className="stat-item"><span>⏱️</span><span>{time}</span></div>
+            </div>
+            {hazards && hazards.length > 0 ? (
+                <div className="hazards-list">
+                    {hazards.map((h, i) => <span key={i} className="hazard-tag"><span>⚠️</span>{h}</span>)}
+                </div>
+            ) : (
+                <div className="hazards-list"><span className="hazard-tag" style={{ borderColor: 'rgba(16,185,129,0.3)' }}><span>✅</span> Clear Route</span></div>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); setShowAnalytics(!showAnalytics); }} style={{marginTop: '1rem', width: '100%', background: 'rgba(255,255,255,0.05)', color: 'var(--text-main)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.5rem', cursor: 'pointer', fontSize: '0.75rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem'}}>
+                <span>📊</span> {showAnalytics ? 'Hide Analytics ▲' : 'View Safety Breakdown ▼'}
+            </button>
+            {showAnalytics && (
+                <div className="fade-in" style={{marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.4)', borderRadius: '12px', fontSize: '0.8rem'}}>
+                    <div style={{marginBottom: '0.75rem'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between'}}><span>Lighting</span><span>{lightingScore}%</span></div>
+                        <div className="progress-container"><div className="progress-fill" style={{width: `${lightingScore}%`, background: lightingScore > 50 ? 'var(--safe)' : 'var(--danger)'}}></div></div>
+                    </div>
+                    <div style={{marginBottom: '0.75rem'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between'}}><span>Road Quality</span><span>{roadScore}%</span></div>
+                        <div className="progress-container"><div className="progress-fill" style={{width: `${roadScore}%`, background: roadScore > 50 ? 'var(--safe)' : 'var(--moderate)'}}></div></div>
+                    </div>
+                    <div>
+                        <div style={{display: 'flex', justifyContent: 'space-between'}}><span>Weather</span><span>{weatherScore}%</span></div>
+                        <div className="progress-container"><div className="progress-fill" style={{width: `${weatherScore}%`, background: weatherScore > 50 ? 'var(--safe)' : 'var(--danger)'}}></div></div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const CSSMap = ({ route, onReportClick, showHavens, isNav, t }) => {
+    if (!route) return null;
+    return (
+        <div className="map-container" style={isNav ? {height: '100%'} : {}}>
+            <div className="grid-overlay"></div>
+            <div className="radar"></div>
+            
+            {!isNav && <div className="glass-panel fade-in" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 20, padding: '0.75rem 1rem', fontSize: '0.875rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Demo Path: </span>
+                <strong style={{ color: `var(--${route.status})` }}>{route.name}</strong>
+            </div>}
+
+            {showHavens && (
+                <div className="fade-in">
+                    <div className="safe-haven" style={{ top: '30%', left: '20%' }}>🚔</div>
+                    <div className="safe-haven" style={{ top: '60%', right: '25%' }}>🏥</div>
+                    <div className="safe-haven" style={{ top: '20%', right: '40%' }}>🚔</div>
+                    <div className="safe-haven" style={{ bottom: '30%', left: '40%' }}>🏥</div>
+                </div>
+            )}
+
+            {!isNav && <button onClick={onReportClick} className="btn-primary" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 20, padding: '0.5rem 1rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)' }}>➕ {t('reportHazard')}</button>}
+
+            <div className="dummy-route-line" style={{ background: `var(--${route.status})`, boxShadow: `0 0 20px var(--${route.status})` }}>
+                <div className="dummy-point start"></div>
+                {route.hazards.map((hazard, idx) => (
+                    <div key={idx} className="hazard-marker" style={{ left: `${(idx + 1) * 30}%` }}>
+                        {hazard.includes('🚧') ? '🚧' : hazard.includes('🌑') ? '🌑' : hazard.includes('🚔') ? '🚔' : hazard.includes('❄️') ? '❄️' : hazard.includes('⛈️') ? '⛈️' : '⚠️'}
+                    </div>
+                ))}
+                {isNav && <div className="hazard-marker" style={{left: '50%', fontSize: '2rem', animation: 'pulse-glow 1s infinite'}}>🚙</div>}
+                <div className="dummy-point end"></div>
+            </div>
+            
+            {!isNav && <div style={{ position: 'absolute', bottom: '2rem', left: '1rem', zIndex: 20, background: 'rgba(0,0,0,0.6)', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.875rem', backdropFilter: 'blur(5px)' }}>
+                {route.hazards.length > 0 ? "Hazards simulated on radar." : "Path is clear."}
+            </div>}
+        </div>
+    );
+};
+
+const MapView = ({ route, onReportClick, showHavens, isNav, t }) => {
+    if (!route) return <div className="glass-panel map-view"><div className="map-container"><p style={{ color: 'var(--text-muted)' }}>Select a route to view on map</p></div></div>;
+    return <div className={`glass-panel map-view ${isNav ? 'nav-view' : ''}`} style={{ padding: 0 }}><CSSMap route={route} onReportClick={onReportClick} showHavens={showHavens} isNav={isNav} t={t} /></div>;
+};
+
+const App = () => {
+    const [lang, setLang] = useState('en');
+    const t = (key) => window.SafetyLogic.Translations[lang][key];
+
+    const [view, setView] = useState('home');
+    const [source, setSource] = useState(''); const [dest, setDest] = useState('');
+    const [baseRoutes, setBaseRoutes] = useState([]);
+    const [routes, setRoutes] = useState([]);
+    const [selectedRouteId, setSelectedRouteId] = useState(null);
+    const [loading, setLoading] = useState(false);
+    
+    // Simulator State
+    const [simTime, setSimTime] = useState('day');
+    const [simWeather, setSimWeather] = useState('clear');
+    const [travelMode, setTravelMode] = useState('driving');
+
+    // UI States
+    const [sosState, setSosState] = useState('idle');
+    const [isListening, setIsListening] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [showHavens, setShowHavens] = useState(false);
+    const [showShareModal, setShowShareModal] = useState(false);
+    const [isARMode, setIsARMode] = useState(false);
+    const [isLightMode, setIsLightMode] = useState(false);
+    
+    const [batteryLevel, setBatteryLevel] = useState(null);
+    
+    // Phase 12 States
+    const [fallCountdown, setFallCountdown] = useState(null);
+    
+    // Phase 14 States
+    const [fakeCallStatus, setFakeCallStatus] = useState('idle');
+    
+    // Phase 15 States
+    const [enteredPin, setEnteredPin] = useState('');
+    const [silentSOS, setSilentSOS] = useState(false);
+    const [screamActive, setScreamActive] = useState(false);
+    const screamContextRef = useRef(null);
+    
+    // Refs
+    const sourceInputRef = useRef(null); const destInputRef = useRef(null);
+    const videoRef = useRef(null);
+    const wakeLockRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
+    const torchStreamRef = useRef(null); // Phase 14: Strobe Light
+
+    // Phase 14: Fake Call Logic
+    const triggerFakeCall = () => {
+        alert("Fake Call scheduled in 5 seconds.");
+        setTimeout(() => {
+            setFakeCallStatus('incoming');
+            playWarningAlarm(); // Use the existing alarm as a ringtone
+        }, 5000);
+    };
+
+    const acceptFakeCall = () => {
+        setFakeCallStatus('active');
+        if (window.speechSynthesis) {
+            const text = lang === 'hi' ? "हेलो बेटा, मैं तुम्हारे पीछे वाली सड़क पर हूँ। तुम कहाँ हो?" : "Hello, I am on the street right behind you. Where are you?";
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-US'; 
+            utterance.rate = 0.9; 
+            window.speechSynthesis.speak(utterance);
+        }
+    };
+
+    const declineFakeCall = () => {
+        setFakeCallStatus('idle');
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+    };
+
+    // Phase 15: Scream Detection
+    const startScreamDetection = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            screamContextRef.current = audioContext;
+            const analyser = audioContext.createAnalyser();
+            const microphone = audioContext.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            let screamFrames = 0;
+            
+            const detectSound = () => {
+                if (!screamContextRef.current) return;
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for(let i=0; i<bufferLength; i++) {
+                    sum += dataArray[i];
+                }
+                let average = sum / bufferLength;
+                
+                // Adjust threshold (120-150 is usually loud depending on mic)
+                if (average > 130) {
+                    screamFrames++;
+                    if (screamFrames > 15 && sosState === 'idle') {
+                        triggerSOS();
+                        screamFrames = 0;
+                    }
+                } else {
+                    screamFrames = Math.max(0, screamFrames - 1);
+                }
+                requestAnimationFrame(detectSound);
+            };
+            detectSound();
+            setScreamActive(true);
+            alert("Scream Detection Active. A loud scream will trigger SOS automatically.");
+        } catch(e) {
+            console.log(e);
+            alert("Microphone access denied for Scream Detection.");
+        }
+    };
+
+    const stopScreamDetection = () => {
+        if(screamContextRef.current) {
+            screamContextRef.current.close();
+            screamContextRef.current = null;
+            setScreamActive(false);
+            alert("Scream Detection Disabled.");
+        }
+    };
+
+    // Phase 12: Evidence Blackbox
+    const startBlackbox = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            audioChunksRef.current = [];
+            mediaRecorderRef.current.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+            mediaRecorderRef.current.onstop = () => {
+                const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `saferoute_evidence_${Date.now()}.webm`;
+                a.click(); URL.revokeObjectURL(url);
+                stream.getTracks().forEach(track => track.stop());
+            };
+            mediaRecorderRef.current.start();
+            console.log("Blackbox recording started");
+        } catch(e) { console.error("Blackbox failed", e); }
+    };
+
+    const stopBlackbox = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+            console.log("Blackbox recording saved");
+        }
+    };
+
+    // Phase 12: Fall Detection
+    useEffect(() => {
+        const handleMotion = (event) => {
+            if (!event.acceleration) return;
+            const { x, y, z } = event.acceleration;
+            const magnitude = Math.sqrt(x*x + y*y + z*z);
+            // If acceleration is > 25 m/s^2 (simulate a fall or sudden panic)
+            if (magnitude > 25 && sosState === 'idle' && fallCountdown === null) {
+                setFallCountdown(10);
+            }
+        };
+        window.addEventListener('devicemotion', handleMotion);
+        return () => window.removeEventListener('devicemotion', handleMotion);
+    }, [sosState, fallCountdown]);
+
+    useEffect(() => {
+        let timer;
+        if (fallCountdown !== null) {
+            if (fallCountdown > 0) {
+                timer = setTimeout(() => setFallCountdown(fallCountdown - 1), 1000);
+                if (navigator.vibrate) navigator.vibrate([100, 100, 100]);
+            } else {
+                setFallCountdown(null);
+                triggerSOS();
+            }
+        }
+        return () => clearTimeout(timer);
+    }, [fallCountdown]);
+
+    const requestSensors = () => {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(state => { if (state === 'granted') alert("Fall Sensors Active"); else alert("Sensor Permission Denied"); })
+                .catch(console.error);
+        } else { alert("Sensors already active or not supported."); }
+    };
+
+    useEffect(() => {
+        if (navigator.getBattery) {
+            navigator.getBattery().then(battery => {
+                setBatteryLevel(battery.level);
+                battery.addEventListener('levelchange', () => setBatteryLevel(battery.level));
+            });
+        }
+    }, []);
+
+    // Theme Toggle
+    useEffect(() => {
+        if (isLightMode) {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+    }, [isLightMode]);
+
+    useEffect(() => {
+        const requestWakeLock = async () => {
+            if ('wakeLock' in navigator && view === 'navigation') {
+                try { wakeLockRef.current = await navigator.wakeLock.request('screen'); } catch(e){}
+            } else if (wakeLockRef.current && view !== 'navigation') {
+                wakeLockRef.current.release(); wakeLockRef.current = null;
+            }
+        };
+        requestWakeLock();
+        return () => { if(wakeLockRef.current) { wakeLockRef.current.release(); wakeLockRef.current=null;} }
+    }, [view]);
+
+    useEffect(() => {
+        if (isARMode && videoRef.current) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(stream => { videoRef.current.srcObject = stream; })
+                .catch(err => { alert("Camera access denied or unavailable."); setIsARMode(false); });
+        } else if (!isARMode && videoRef.current && videoRef.current.srcObject) {
+            videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+    }, [isARMode]);
+
+    useEffect(() => {
+        const hasDummyKey = window.OPENWEATHER_API_KEY === "YOUR_OPENWEATHERMAP_API_KEY";
+        if (!hasDummyKey && window.google && window.google.maps && window.google.maps.places) {
+            const sourceAutocomplete = new window.google.maps.places.Autocomplete(sourceInputRef.current, { fields: ["formatted_address"] });
+            const destAutocomplete = new window.google.maps.places.Autocomplete(destInputRef.current, { fields: ["formatted_address"] });
+            sourceAutocomplete.addListener("place_changed", () => { const p = sourceAutocomplete.getPlace(); if (p.formatted_address) setSource(p.formatted_address); });
+            destAutocomplete.addListener("place_changed", () => { const p = destAutocomplete.getPlace(); if (p.formatted_address) setDest(p.formatted_address); });
+        }
+    }, [view]);
+
+    useEffect(() => {
+        let timer;
+        if (sosState === '3') timer = setTimeout(() => setSosState('2'), 1000);
+        else if (sosState === '2') timer = setTimeout(() => setSosState('1'), 1000);
+        else if (sosState === '1') {
+            timer = setTimeout(() => setSosState('sent'), 1000);
+            const message = encodeURIComponent("EMERGENCY! I need help. My last known location is: https://unsafenav.live/track/a9x2p");
+            window.location.href = `sms:?body=${message}`;
+        }
+        else if (sosState === 'sent') timer = setTimeout(() => setSosState('idle'), 4000); // 4 seconds before resetting completely
+        return () => clearTimeout(timer);
+    }, [sosState]);
+
+    useEffect(() => {
+        if (baseRoutes.length > 0) {
+            const simulated = baseRoutes.map(br => window.SafetyLogic.applySimulator(br, simTime, simWeather, travelMode));
+            simulated.sort((a,b) => b.score - a.score);
+            setRoutes(simulated);
+            if (!selectedRouteId || !simulated.find(r=>r.id===selectedRouteId)) setSelectedRouteId(simulated[0].id);
+        }
+    }, [baseRoutes, simTime, simWeather, travelMode]);
+
+    const useLiveGPS = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => setSource(`${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`),
+                (err) => alert("GPS access denied.")
+            );
+        } else { alert("Geolocation not supported."); }
+    };
+
+    const pairIoT = async () => {
+        if (navigator.bluetooth) {
+            try { await navigator.bluetooth.requestDevice({ acceptAllDevices: true }); alert("Smart Keychain paired successfully!"); } catch (e) { }
+        } else { alert("Web Bluetooth is not supported on this browser."); }
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setTimeout(() => {
+            setBaseRoutes(window.SafetyLogic.getBaseMockRoutes());
+            setLoading(false);
+            setView('results');
+        }, 1000);
+    };
+
+    const handleReport = (hazardText) => {
+        const updatedBase = baseRoutes.map(r => {
+            if (r.id === selectedRouteId && !r.addedHazards.includes(hazardText)) { return { ...r, addedHazards: [...r.addedHazards, hazardText] }; }
+            return r;
+        });
+        setBaseRoutes(updatedBase);
+        setShowReportModal(false);
+    };
+
+    const triggerSOS = () => {
+        if (sosState === 'idle') {
+            setSosState('3'); 
+            playWarningAlarm();
+            
+            if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300, 100, 1000]);
+            
+            // Phase 12: Start Audio Evidence Recording
+            startBlackbox();
+
+            if (window.speechSynthesis) {
+                const text = lang === 'hi' ? "इमरजेंसी एस ओ एस। लाइव लोकेशन शेयर की जा रही है।" : "Emergency SOS activated. Sharing live location.";
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-US'; 
+                utterance.rate = 1.1; 
+                window.speechSynthesis.speak(utterance);
+            }
+            
+            // Phase 14: Hardware Strobe Light
+            try {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                    .then(stream => {
+                        torchStreamRef.current = stream;
+                        const track = stream.getVideoTracks()[0];
+                        let torchOn = true;
+                        const interval = setInterval(() => {
+                            if(track && typeof track.applyConstraints === 'function') {
+                                track.applyConstraints({ advanced: [{ torch: torchOn }] }).catch(e=>{});
+                                torchOn = !torchOn;
+                            }
+                        }, 200);
+                        torchStreamRef.current.interval = interval;
+                    }).catch(e => {});
+            } catch(e) {}
+        }
+    };
+    
+    // Phase 15: Duress PIN Logic
+    const handlePinInput = (num) => {
+        const newPin = enteredPin + num;
+        setEnteredPin(newPin);
+        if (newPin.length === 4) {
+            if (newPin === '1234') { // Correct PIN
+                completeDisarm();
+            } else if (newPin === '0000') { // Duress PIN
+                activateSilentSOS();
+            } else {
+                alert("Incorrect PIN");
+                setEnteredPin('');
+            }
+        }
+    };
+
+    const completeDisarm = () => {
+        setSosState('idle');
+        stopBlackbox();
+        
+        if (torchStreamRef.current) {
+            clearInterval(torchStreamRef.current.interval);
+            torchStreamRef.current.getVideoTracks().forEach(t => {
+                try { t.applyConstraints({advanced:[{torch: false}]}); } catch(e){}
+                t.stop();
+            });
+            torchStreamRef.current = null;
+        }
+        setEnteredPin('');
+        alert("Alert Cancelled. Audio evidence downloaded.");
+    };
+
+    const activateSilentSOS = () => {
+        setSosState('idle'); 
+        if (torchStreamRef.current) {
+            clearInterval(torchStreamRef.current.interval);
+            torchStreamRef.current.getVideoTracks().forEach(t => {
+                try { t.applyConstraints({advanced:[{torch: false}]}); } catch(e){}
+                t.stop();
+            });
+            torchStreamRef.current = null;
+        }
+        setEnteredPin('');
+        setSilentSOS(true);
+        // Note: Blackbox is NOT stopped!
+        alert("Alert Cancelled."); // Fake message for attacker
+    };
+
+    const cancelSOS = (e) => {
+        e.stopPropagation();
+        // Fallback if they click outside or something, but we want them to use PIN pad
+        // For Hackathon demo, we will just show the PIN pad in the UI
+    };
+
+    const startVoiceRecognition = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) { alert("Voice command is not supported in this browser."); return; }
+        const recognition = new SpeechRecognition();
+        recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-US'; 
+        recognition.interimResults = false; recognition.maxAlternatives = 1;
+        recognition.onstart = () => setIsListening(true);
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript.toLowerCase();
+            if (transcript.includes("help") || transcript.includes("emergency") || transcript.includes("sos") || transcript.includes("बचाओ") || transcript.includes("मदद")) {
+                triggerSOS();
+            } else { alert(`Heard: '${transcript}'. Say 'Help' or 'बचाओ' to trigger SOS.`); }
+        };
+        recognition.onerror = (event) => { console.error(event.error); setIsListening(false); };
+        recognition.onend = () => setIsListening(false);
+        recognition.start();
+    };
+
+    const resetSearch = () => { setView('home'); setBaseRoutes([]); setRoutes([]); setSource(''); setDest(''); setIsARMode(false); };
+    const selectedRoute = routes.find(r => r.id === selectedRouteId);
+
+    return (
+        <div className={isARMode ? "ar-active" : ""}>
+            <video ref={videoRef} autoPlay playsInline muted className="ar-video-bg" style={{display: isARMode ? 'block' : 'none'}}></video>
+            
+            <div className="app-container" style={isARMode ? {background: 'rgba(15, 23, 42, 0.5)'} : {}}>
+                {!isARMode && <div className="bg-animation"></div>}
+                
+                {batteryLevel !== null && batteryLevel <= 0.20 && (
+                    <div style={{background: '#ef4444', color: 'white', padding: '0.5rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold'}}>
+                        ⚠️ Low Battery ({(batteryLevel*100).toFixed(0)}%). Share your route tracking link before traveling!
+                    </div>
+                )}
+                
+                <div className="scroll-area">
+                {/* Phase 12: Fall Detection Modal */}
+                {fallCountdown !== null && (
+                    <div className="modal-overlay" style={{background: 'rgba(239, 68, 68, 0.9)', zIndex: 999}}>
+                        <div className="modal" style={{textAlign: 'center', background: 'transparent', border: 'none', boxShadow: 'none'}}>
+                            <h1 style={{fontSize: '4rem', marginBottom: '1rem', animation: 'ping 1s infinite'}}>⚠️</h1>
+                            <h2 style={{color: 'white', marginBottom: '1rem'}}>Sudden Motion Detected!</h2>
+                            <p style={{color: 'white', marginBottom: '2rem'}}>Are you safe? Auto-triggering SOS in...</p>
+                            <div style={{fontSize: '6rem', fontWeight: '900', color: 'white', marginBottom: '2rem'}}>{fallCountdown}</div>
+                            <button onClick={() => setFallCountdown(null)} className="btn-primary" style={{width: '100%', padding: '1rem', background: '#10b981', border: '2px solid white', fontSize: '1.25rem'}}>
+                                I AM SAFE (Cancel)
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {view !== 'navigation' && (
+                    <header className="header" style={{position: 'relative'}}>
+                        <div style={{position: 'absolute', top: 0, right: 0, fontSize: '0.75rem', background: 'rgba(0,0,0,0.5)', padding: '0.5rem 1rem', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid rgba(255,255,255,0.1)'}}>
+                            <span className="green-dot"></span> 3 {t('contacts')}
+                        </div>
+                        <div style={{position: 'absolute', top: 0, left: 0, display: 'flex', gap: '0.5rem'}}>
+                            <button onClick={() => setLang(lang === 'en' ? 'hi' : 'en')} style={{background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '8px', padding: '0.25rem 0.5rem', cursor: 'pointer'}}>
+                                {lang === 'en' ? 'A / अ' : 'अ / A'}
+                            </button>
+                            <button onClick={() => setIsLightMode(!isLightMode)} title="Toggle Theme" style={{background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', borderRadius: '8px', padding: '0.25rem 0.5rem', cursor: 'pointer'}}>
+                                {isLightMode ? '🌙' : '☀️'}
+                            </button>
+                            <button onClick={pairIoT} title="Pair Bluetooth Device" style={{background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.5)', color: 'white', borderRadius: '8px', padding: '0.25rem 0.5rem', cursor: 'pointer'}}>
+                                🔵 IoT
+                            </button>
+                            <button onClick={screamActive ? stopScreamDetection : startScreamDetection} title="Enable Scream Detection" style={{background: screamActive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)', border: `1px solid ${screamActive ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)'}`, color: 'white', borderRadius: '8px', padding: '0.25rem 0.5rem', cursor: 'pointer'}}>
+                                🗣️ Scream
+                            </button>
+                            {/* Phase 12: Request Sensors for iOS */}
+                            <button onClick={requestSensors} title="Enable Motion Sensors" style={{background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.5)', color: 'white', borderRadius: '8px', padding: '0.25rem 0.5rem', cursor: 'pointer'}}>
+                                🏃‍♂️ Sens
+                            </button>
+                        </div>
+
+                        <h1>{t('title')}</h1>
+                        <p>{t('subtitle')}</p>
+                    </header>
+                )}
+
+                {view === 'home' && (
+                    <div className="glass-panel search-box fade-in">
+                        <form onSubmit={handleSearch} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div className="input-group">
+                                <label>{t('startLabel')}</label>
+                                <div style={{display: 'flex', gap: '0.5rem'}}>
+                                    <input ref={sourceInputRef} type="text" placeholder="E.g., Connaught Place, New Delhi" value={source} onChange={(e) => setSource(e.target.value)} required style={{flex: 1}} />
+                                    <button type="button" onClick={useLiveGPS} style={{background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.5)', color: 'white', borderRadius: '8px', padding: '0 1rem', cursor: 'pointer'}} title="Use Live GPS">📍</button>
+                                </div>
+                            </div>
+                            <div className="input-group">
+                                <label>{t('destLabel')}</label>
+                                <input ref={destInputRef} type="text" placeholder="E.g., Cyber City, Gurgaon" value={dest} onChange={(e) => setDest(e.target.value)} required />
+                            </div>
+                            <button type="submit" className="btn-primary" disabled={loading} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                                {loading ? <span className="spin">⏳</span> : <span>🚗</span>}
+                                {loading ? t('btnFinding') : t('btnFind')}
+                            </button>
+                        </form>
+                    </div>
+                )}
+
+                {view === 'results' && (
+                    <div className="results-layout fade-in">
+                        <div className="routes-list">
+                            <div className="glass-panel" style={{marginBottom: '1rem', padding: '1rem'}}>
+                                <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 'bold'}}>LIVE SIMULATOR</div>
+                                <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                                    <select className="sim-control" value={travelMode} onChange={e=>setTravelMode(e.target.value)}>
+                                        <option value="driving">🚗 Driving</option>
+                                        <option value="cycling">🚲 Cycling</option>
+                                        <option value="walking">🚶‍♀️ Walking</option>
+                                    </select>
+                                    <select className="sim-control" value={simTime} onChange={e=>setSimTime(e.target.value)}>
+                                        <option value="day">☀️ Day</option>
+                                        <option value="night">🌙 Night</option>
+                                    </select>
+                                    <select className="sim-control" value={simWeather} onChange={e=>setSimWeather(e.target.value)}>
+                                        <option value="clear">🌤️ Clear</option>
+                                        <option value="rain">🌧️ Rain</option>
+                                        <option value="fog">🌫️ Dense Fog</option>
+                                        <option value="snow">❄️ Snow/Ice</option>
+                                        <option value="storm">⛈️ Thunderstorm</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h2>{t('routeOptions')}</h2>
+                                <button onClick={resetSearch} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}>{t('newSearch')}</button>
+                            </div>
+                            {routes.map((route, idx) => (
+                                <RouteCard 
+                                    key={route.id} route={route} isRecommended={idx === 0} isSelected={selectedRouteId === route.id}
+                                    onClick={() => { setSelectedRouteId(route.id); speakWarning(route.status, route.hazards, lang); }}
+                                />
+                            ))}
+                        </div>
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <h2>{t('liveMap')}</h2>
+                                <div style={{display: 'flex', gap: '0.5rem'}}>
+                                    <button onClick={() => setIsARMode(!isARMode)} className="btn-primary" style={{ padding: '0.5rem', fontSize: '0.75rem', background: isARMode ? 'rgba(16,185,129,0.3)' : 'transparent', border: `1px solid ${isARMode ? '#10b981' : 'var(--text-muted)'}`, color: 'var(--text-main)' }}>
+                                        {isARMode ? '📷 AR On' : '📷 AR Mode'}
+                                    </button>
+                                    <button onClick={() => setShowHavens(!showHavens)} className="btn-primary" style={{ padding: '0.5rem', fontSize: '0.75rem', background: showHavens ? 'rgba(59,130,246,0.3)' : 'transparent', border: '1px solid rgba(59,130,246,0.5)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span>{showHavens ? '🏥' : '🚔'}</span> {t('safeHavens')}
+                                    </button>
+                                    <button onClick={() => setShowShareModal(true)} className="btn-primary" style={{ padding: '0.5rem', fontSize: '0.75rem', background: 'transparent', border: '1px solid var(--text-muted)', color: 'var(--text-main)' }}>
+                                        🔗 {t('shareTrip')}
+                                    </button>
+                                    <button onClick={() => setView('navigation')} className="btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', background: 'var(--accent)', color: 'white' }}>
+                                        ▶ {t('startNav')}
+                                    </button>
+                                </div>
+                            </div>
+                            <MapView route={selectedRoute} onReportClick={() => setShowReportModal(true)} showHavens={showHavens} isNav={false} t={t} />
+                        </div>
+                    </div>
+                )}
+
+                {view === 'navigation' && (
+                    <div className="fade-in" style={{height: '90vh', position: 'relative'}}>
+                        <div style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 30, background: 'var(--safe)', padding: '1rem 2rem', borderRadius: '12px', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 10px 30px rgba(16,185,129,0.5)' }}>
+                             <span style={{fontSize: '2rem'}}>⬆️</span>
+                             <div>
+                                 <div style={{fontSize: '1.5rem', fontWeight: 'bold'}}>In 200m</div>
+                                 <div>Continue straight on {selectedRoute?.name || 'Main St'}</div>
+                             </div>
+                        </div>
+                        
+                        <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 30, background: 'rgba(0,0,0,0.8)', padding: '1rem 2rem', borderRadius: '12px', display: 'flex', gap: '2rem', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                             <div style={{textAlign: 'center'}}><div style={{fontSize: '1.5rem', fontWeight: 'bold', color: 'white'}}>45</div><div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>km/h</div></div>
+                             <div style={{textAlign: 'center'}}><div style={{fontSize: '1.5rem', fontWeight: 'bold', color: 'white'}}>{selectedRoute?.time || '25 min'}</div><div style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>left</div></div>
+                        </div>
+
+                        <button onClick={() => setView('results')} className="btn-primary" style={{ position: 'absolute', bottom: '1rem', right: '1rem', zIndex: 30, background: '#ef4444' }}>
+                            {t('endTrip')}
+                        </button>
+                        
+                        <MapView route={selectedRoute} showHavens={showHavens} isNav={true} t={t} />
+                    </div>
+                )}
+
+                <div className={`voice-btn ${isListening ? 'listening' : ''}`} onClick={startVoiceRecognition} title="Say 'Help' to trigger SOS">
+                    🎙️
+                </div>
+                <div className="sos-btn" onClick={triggerSOS}>SOS</div>
+
+                {sosState !== 'idle' && (
+                    <div className="sos-active-overlay">
+                        {sosState === 'sent' ? (
+                            <>
+                                <div style={{ fontSize: '4rem' }}>✅</div>
+                                <h1 style={{ color: 'white', marginTop: '1rem' }}>Emergency Alert Sent</h1>
+                                <p style={{ color: 'white', marginBottom: '2rem' }}>Live location shared. Audio evidence capturing...</p>
+                                
+                                <p style={{color: 'var(--text-muted)'}}>Enter PIN to Disarm</p>
+                                <div className="pin-display">
+                                    {enteredPin.padEnd(4, '•')}
+                                </div>
+                                <div className="pin-pad">
+                                    {[1,2,3,4,5,6,7,8,9].map(num => (
+                                        <div key={num} className="pin-btn" onClick={() => handlePinInput(num.toString())}>{num}</div>
+                                    ))}
+                                    <div className="pin-btn" style={{visibility: 'hidden'}}></div>
+                                    <div className="pin-btn" onClick={() => handlePinInput('0')}>0</div>
+                                    <div className="pin-btn" onClick={() => setEnteredPin('')} style={{fontSize: '1rem'}}>CLR</div>
+                                </div>
+                                <div style={{marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem'}}>Disarm: 1234 | Fake Disarm: 0000</div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="sos-countdown">{sosState}</div>
+                                <p style={{ color: 'white', marginTop: '2rem', fontSize: '1.5rem' }}>Sending Emergency Alert & Recording Audio...</p>
+                                <button onClick={completeDisarm} style={{ marginTop: '2rem', padding: '1rem 2rem', background: 'transparent', border: '2px solid white', color: 'white', borderRadius: '8px', cursor: 'pointer' }}>Cancel Alert</button>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {showReportModal && (
+                    <div className="modal-overlay" onClick={() => setShowReportModal(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()}>
+                            <h2 style={{ marginBottom: '1rem' }}>{t('reportHazard')}</h2>
+                            <div className="hazard-option" onClick={() => handleReport('🚔 Suspicious Activity')}><span>🚔</span> Suspicious Activity</div>
+                            <div className="hazard-option" onClick={() => handleReport('🌑 Streetlight Broken')}><span>🌑</span> Streetlight Broken</div>
+                            <div className="hazard-option" onClick={() => handleReport('🚧 Unmarked Pothole/Construction')}><span>🚧</span> Unmarked Pothole</div>
+                            <button onClick={() => setShowReportModal(false)} className="btn-primary" style={{ width: '100%', marginTop: '1.5rem', background: 'transparent', border: '1px solid var(--panel-border)', color: 'white' }}>Cancel</button>
+                        </div>
+                    </div>
+                )}
+
+                {showShareModal && (
+                    <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
+                        <div className="modal" onClick={(e) => e.stopPropagation()} style={{textAlign: 'center'}}>
+                            <h2 style={{ marginBottom: '1rem' }}>{t('shareTrip')}</h2>
+                            <div style={{ background: 'rgba(0,0,0,0.5)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', border: '1px solid rgba(255,255,255,0.1)', fontSize: '0.875rem', fontFamily: 'monospace', color: 'var(--accent)'}}>
+                                https://unsafenav.live/track/a9x2p
+                            </div>
+                            <button onClick={() => { setShowShareModal(false); alert("Link Copied!"); }} className="btn-primary" style={{ width: '100%' }}>🔗 Copy Link</button>
+                        </div>
+                    </div>
+                )}
+                
+                <footer style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '2rem', paddingBottom: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    🔒 <strong>Privacy First:</strong> All AI, Audio, and GPS sensor data is processed locally on your device.
+                </footer>
+                
+                </div> {/* End scroll-area */}
+
+                {/* Fixed Bottom Navigation Bar */}
+                <div className="bottom-nav">
+                    <button className={`nav-item ${view === 'home' || view === 'results' ? 'active' : ''}`} onClick={() => { if(view==='navigation') setView('results'); else setView('home'); }}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                        Home
+                    </button>
+                    <button className={`nav-item ${showHavens ? 'active' : ''}`} onClick={() => setShowHavens(!showHavens)}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                        Radar
+                    </button>
+                    <button className={`nav-item ${isARMode ? 'active' : ''}`} onClick={() => setIsARMode(!isARMode)}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        AR Mode
+                    </button>
+                    <button className="nav-item" onClick={startVoiceRecognition}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        Voice
+                    </button>
+                    <button className="nav-item" onClick={triggerFakeCall}>
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                        Fake Call
+                    </button>
+                </div>
+
+                {/* Phase 14: Fake Call Screen UI */}
+                {fakeCallStatus !== 'idle' && (
+                    <div className="fake-call-screen">
+                        <div style={{fontSize: '5rem', marginTop: '4rem'}}>👨‍🦳</div>
+                        <div className="caller-info">
+                            <div className="caller-name">{lang === 'hi' ? 'पापा' : 'Dad'}</div>
+                            <div className="caller-status">{fakeCallStatus === 'incoming' ? 'Incoming Call...' : '00:12'}</div>
+                        </div>
+                        <div className="call-actions">
+                            <button className="call-btn decline" onClick={declineFakeCall}>☎</button>
+                            {fakeCallStatus === 'incoming' && (
+                                <button className="call-btn accept" onClick={acceptFakeCall}>📞</button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+    </script>
+</body>
+</html>
