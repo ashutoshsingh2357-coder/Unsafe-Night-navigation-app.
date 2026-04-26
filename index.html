@@ -107,9 +107,9 @@ function getScoreStatus(score) {
 
 function getBaseMockRoutes() {
     return [
-        { id: 'm1', name: "Main Highway Route", distance: "12.5 km", time: "25 mins", baseL: 0, baseC: 0, baseR: 0, baseV: 0, addedHazards: [], isMock: true },
-        { id: 'm2', name: "City Center Shortcut", distance: "10.2 km", time: "32 mins", baseL: 0, baseC: 1, baseR: 0, baseV: 0, addedHazards: [], isMock: true },
-        { id: 'm3', name: "Outer Ring Road", distance: "15.0 km", time: "28 mins", baseL: 1, baseC: 0, baseR: 0, baseV: 0, addedHazards: [], isMock: true }
+        { id: 'm1', name: "Fastest Path", distance: "10.2 km", time: "22 mins", baseL: 1, baseC: 1, baseR: 0, baseV: 0, addedHazards: ["⚠️ High crime history", "🌑 Isolated stretch"], isMock: true },
+        { id: 'm2', name: "Sentinel Safe Path", distance: "12.5 km", time: "28 mins", baseL: 0, baseC: 0, baseR: 0, baseV: 0, addedHazards: ["✅ Heavy CCTV coverage"], isMock: true },
+        { id: 'm3', name: "Alternative Route", distance: "15.0 km", time: "32 mins", baseL: 0, baseC: 1, baseR: 0, baseV: 0, addedHazards: [], isMock: true }
     ];
 }
 
@@ -260,6 +260,11 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
             attribution: '© OpenStreetMap & CartoDB'
         }).addTo(map);
         mapRef.current = map;
+
+        // Fix blank map issue by forcing leaflet to recalculate container size
+        setTimeout(() => {
+            if (mapRef.current) mapRef.current.invalidateSize();
+        }, 300);
 
         return () => {
             if (mapRef.current) {
