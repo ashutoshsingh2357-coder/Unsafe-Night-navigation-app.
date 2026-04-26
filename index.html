@@ -361,10 +361,15 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
 
         routingControlRef.current = routingControl;
 
+        // Force invalidate size when route updates
+        setTimeout(() => {
+            if (mapRef.current) mapRef.current.invalidateSize();
+        }, 100);
+
     }, [route?.id]);
 
     return (
-        <div className="map-container" style={{height: isNav ? '100%' : '300px', width: '100%', position: 'relative', borderRadius: '12px', overflow: 'hidden'}}>
+        <div className="map-container" style={{height: isNav ? '100%' : '100%', minHeight: isNav ? '0' : '400px', width: '100%', position: 'relative', borderRadius: '12px', overflow: 'hidden'}}>
             <div ref={mapDivRef} style={{height: '100%', width: '100%', zIndex: 1}}></div>
             
             {/* Safe Havens Overlay */}
@@ -378,7 +383,7 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
             {!isNav && <button onClick={onReportClick} className="btn-primary" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000, padding: '0.5rem 1rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.9)', color: 'black', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>➕ {t('reportHazard')}</button>}
             
             {!isNav && <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 1000, background: 'rgba(0,0,0,0.8)', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.875rem', color: 'white', backdropFilter: 'blur(5px)' }}>
-                {route.id === 'r2' ? "✅ Sentinel Safe Path Active" : "⚠️ Hazards detected on route"}
+                {route.id === 'm2' ? "✅ Sentinel Safe Path Active" : "⚠️ Hazards detected on route"}
             </div>}
         </div>
     );
