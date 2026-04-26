@@ -289,10 +289,10 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
         let waypoints = [];
         let styles = [];
 
-        if (route.id === 'r1') { // Fastest Route (Risky)
+        if (route.id === 'm1') { // Fastest Route (Risky)
             waypoints = [startPoint, endPoint];
             styles = [{color: '#ef4444', opacity: 0.8, weight: 6, dashArray: '6, 10'}]; // Dashed red
-        } else if (route.id === 'r2') { // Sentinel Safe Path
+        } else if (route.id === 'm2') { // Sentinel Safe Path
             waypoints = [startPoint, L.latLng(28.6350, 77.2500), endPoint];
             styles = [
                 {color: '#ffffff', opacity: 0.4, weight: 14}, // Outer Glow
@@ -309,7 +309,7 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
 
         // Drop visual hazard markers on the map
         if (route.hazards && route.hazards.length > 0) {
-            const hazardCoords = route.id === 'r1' ? [
+            const hazardCoords = route.id === 'm1' ? [
                 [28.6320, 77.2180], // Example danger zone 1
                 [28.6410, 77.2250]  // Example danger zone 2
             ] : [
