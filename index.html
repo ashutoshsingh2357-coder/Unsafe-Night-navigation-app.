@@ -316,9 +316,14 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
         if (route.hazards && route.hazards.length > 0) {
             const hazardCoords = route.id === 'm1' ? [
                 [28.6320, 77.2180], // Example danger zone 1
-                [28.6410, 77.2250]  // Example danger zone 2
+                [28.6410, 77.2250], // Example danger zone 2
+                [28.6250, 77.2150], // Example danger zone 3
+                [28.6380, 77.2200]  // Example danger zone 4
+            ] : route.id === 'm3' ? [
+                [28.6250, 77.2100],
+                [28.6300, 77.2150]
             ] : [
-                [28.6250, 77.2100]
+                [28.6300, 77.2300]
             ];
 
             route.hazards.forEach((hazard, idx) => {
