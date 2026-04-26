@@ -291,6 +291,11 @@ body {
   gap: 1.25rem;
 }
 
+/* Hide Leaflet Routing UI */
+.leaflet-routing-container, .leaflet-routing-error {
+  display: none !important;
+}
+
 /* Route Card */
 .route-card {
   padding: 1.5rem;
