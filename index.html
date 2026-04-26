@@ -16,6 +16,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Leaflet & Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+
+    <!-- Leaflet & Routing Machine JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -234,42 +242,71 @@ const RouteCard = ({ route, isRecommended, isSelected, onClick }) => {
     );
 };
 
-const CSSMap = ({ route, onReportClick, showHavens, isNav, t }) => {
-    if (!route) return null;
-    return (
-        <div className="map-container" style={isNav ? {height: '100%'} : {}}>
-            <div className="grid-overlay"></div>
-            <div className="radar"></div>
-            
-            {!isNav && <div className="glass-panel fade-in" style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 20, padding: '0.75rem 1rem', fontSize: '0.875rem' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Demo Path: </span>
-                <strong style={{ color: `var(--${route.status})` }}>{route.name}</strong>
-            </div>}
+const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
+    const mapDivRef = useRef(null);
+    const mapRef = useRef(null);
+    const routingControlRef = useRef(null);
 
+    useEffect(() => {
+        if (!window.L || !mapDivRef.current) return;
+
+        if (!mapRef.current) {
+            // Initialize Map
+            const map = L.map(mapDivRef.current, { zoomControl: false }).setView([28.6139, 77.2090], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            mapRef.current = map;
+
+            // Initialize Routing
+            const routingControl = L.Routing.control({
+                waypoints: [],
+                lineOptions: { styles: [{color: '#ef4444', opacity: 0.8, weight: 6}] },
+                addWaypoints: false,
+                draggableWaypoints: false,
+                show: false, // Hides text instructions
+                createMarker: () => null // Hide default markers
+            }).addTo(map);
+            routingControlRef.current = routingControl;
+        }
+
+        const map = mapRef.current;
+        const routingControl = routingControlRef.current;
+
+        // Apply route logic based on selection
+        const startPoint = L.latLng(28.6139, 77.2090); // CP
+        const endPoint = L.latLng(28.6500, 77.2300);   // Old Delhi
+
+        if (route.id === 'r1') { // Fastest Route (Risky)
+            routingControl.setWaypoints([startPoint, endPoint]);
+            routingControl.options.lineOptions.styles = [{color: '#ef4444', opacity: 0.8, weight: 6}]; // Red
+        } else if (route.id === 'r2') { // Sentinel Safe Path
+            routingControl.setWaypoints([startPoint, L.latLng(28.6250, 77.2450), endPoint]);
+            routingControl.options.lineOptions.styles = [{color: '#10b981', opacity: 0.9, weight: 8}]; // Green
+            map.flyTo([28.6250, 77.2300], 14, { duration: 1.5 });
+        } else { // Well Lit Route
+            routingControl.setWaypoints([startPoint, L.latLng(28.6300, 77.2100), endPoint]);
+            routingControl.options.lineOptions.styles = [{color: '#f59e0b', opacity: 0.8, weight: 6}]; // Orange
+        }
+
+    }, [route.id]);
+
+    return (
+        <div className="map-container" style={{height: isNav ? '100%' : '300px', width: '100%', position: 'relative', borderRadius: '12px', overflow: 'hidden'}}>
+            <div ref={mapDivRef} style={{height: '100%', width: '100%', zIndex: 1}}></div>
+            
+            {/* Safe Havens Overlay */}
             {showHavens && (
-                <div className="fade-in">
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 500 }}>
                     <div className="safe-haven" style={{ top: '30%', left: '20%' }}>🚔</div>
                     <div className="safe-haven" style={{ top: '60%', right: '25%' }}>🏥</div>
-                    <div className="safe-haven" style={{ top: '20%', right: '40%' }}>🚔</div>
-                    <div className="safe-haven" style={{ bottom: '30%', left: '40%' }}>🏥</div>
                 </div>
             )}
 
-            {!isNav && <button onClick={onReportClick} className="btn-primary" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 20, padding: '0.5rem 1rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)' }}>➕ {t('reportHazard')}</button>}
-
-            <div className="dummy-route-line" style={{ background: `var(--${route.status})`, boxShadow: `0 0 20px var(--${route.status})` }}>
-                <div className="dummy-point start"></div>
-                {route.hazards.map((hazard, idx) => (
-                    <div key={idx} className="hazard-marker" style={{ left: `${(idx + 1) * 30}%` }}>
-                        {hazard.includes('🚧') ? '🚧' : hazard.includes('🌑') ? '🌑' : hazard.includes('🚔') ? '🚔' : hazard.includes('❄️') ? '❄️' : hazard.includes('⛈️') ? '⛈️' : '⚠️'}
-                    </div>
-                ))}
-                {isNav && <div className="hazard-marker" style={{left: '50%', fontSize: '2rem', animation: 'pulse-glow 1s infinite'}}>🚙</div>}
-                <div className="dummy-point end"></div>
-            </div>
+            {!isNav && <button onClick={onReportClick} className="btn-primary" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000, padding: '0.5rem 1rem', fontSize: '0.75rem', background: 'rgba(255,255,255,0.9)', color: 'black', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>➕ {t('reportHazard')}</button>}
             
-            {!isNav && <div style={{ position: 'absolute', bottom: '2rem', left: '1rem', zIndex: 20, background: 'rgba(0,0,0,0.6)', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.875rem', backdropFilter: 'blur(5px)' }}>
-                {route.hazards.length > 0 ? "Hazards simulated on radar." : "Path is clear."}
+            {!isNav && <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', zIndex: 1000, background: 'rgba(0,0,0,0.8)', padding: '0.5rem 1rem', borderRadius: '999px', fontSize: '0.875rem', color: 'white', backdropFilter: 'blur(5px)' }}>
+                {route.id === 'r2' ? "✅ Sentinel Safe Path Active" : "⚠️ Hazards detected on route"}
             </div>}
         </div>
     );
@@ -277,7 +314,7 @@ const CSSMap = ({ route, onReportClick, showHavens, isNav, t }) => {
 
 const MapView = ({ route, onReportClick, showHavens, isNav, t }) => {
     if (!route) return <div className="glass-panel map-view"><div className="map-container"><p style={{ color: 'var(--text-muted)' }}>Select a route to view on map</p></div></div>;
-    return <div className={`glass-panel map-view ${isNav ? 'nav-view' : ''}`} style={{ padding: 0 }}><CSSMap route={route} onReportClick={onReportClick} showHavens={showHavens} isNav={isNav} t={t} /></div>;
+    return <div className={`glass-panel map-view ${isNav ? 'nav-view' : ''}`} style={{ padding: 0 }}><LeafletMap route={route} onReportClick={onReportClick} showHavens={showHavens} isNav={isNav} t={t} /></div>;
 };
 
 const App = () => {

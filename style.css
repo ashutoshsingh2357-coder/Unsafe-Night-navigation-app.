@@ -70,6 +70,8 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 .scroll-area {
@@ -256,7 +258,7 @@ body {
   top: 0; left: 0;
   width: 100vw; height: 100vh;
   object-fit: cover;
-  z-index: -1;
+  z-index: 0;
   opacity: 1;
   pointer-events: none;
 }
