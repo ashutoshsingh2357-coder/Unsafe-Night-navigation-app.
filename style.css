@@ -296,6 +296,19 @@ body {
   display: none !important;
 }
 
+/* THE CSS KILL-SWITCH FOR YELLOW/DASHED LINES */
+.leaflet-interactive { 
+  stroke-dasharray: none !important; 
+  stroke-linejoin: round !important;
+  stroke-linecap: round !important;
+}
+
+/* Minimize Leaflet attribution clutter */
+.leaflet-control-attribution { 
+  font-size: 8px !important; 
+  background: rgba(255,255,255,0.5) !important;
+}
+
 /* Route Card */
 .route-card {
   padding: 1.5rem;
