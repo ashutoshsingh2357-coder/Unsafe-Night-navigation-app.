@@ -502,8 +502,11 @@ const App = () => {
 
     useEffect(() => {
         if (isARMode && videoRef.current) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-                .then(stream => { videoRef.current.srcObject = stream; })
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
+                .then(stream => { 
+                    videoRef.current.srcObject = stream; 
+                    videoRef.current.play().catch(e => console.error("Play error:", e));
+                })
                 .catch(err => { alert("Camera access denied or unavailable."); setIsARMode(false); });
         } else if (!isARMode && videoRef.current && videoRef.current.srcObject) {
             videoRef.current.srcObject.getTracks().forEach(track => track.stop());
@@ -597,7 +600,7 @@ const App = () => {
             
             // Phase 14: Hardware Strobe Light
             try {
-                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
                     .then(stream => {
                         torchStreamRef.current = stream;
                         const track = stream.getVideoTracks()[0];
@@ -670,20 +673,44 @@ const App = () => {
 
     const startVoiceRecognition = () => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) { alert("Voice command is not supported in this browser."); return; }
-        const recognition = new SpeechRecognition();
-        recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-US'; 
-        recognition.interimResults = false; recognition.maxAlternatives = 1;
-        recognition.onstart = () => setIsListening(true);
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript.toLowerCase();
-            if (transcript.includes("help") || transcript.includes("emergency") || transcript.includes("sos") || transcript.includes("बचाओ") || transcript.includes("मदद")) {
-                triggerSOS();
-            } else { alert(`Heard: '${transcript}'. Say 'Help' or 'बचाओ' to trigger SOS.`); }
-        };
-        recognition.onerror = (event) => { console.error(event.error); setIsListening(false); };
-        recognition.onend = () => setIsListening(false);
-        recognition.start();
+        if (!SpeechRecognition) { alert("Voice command is not supported in this browser. Try Chrome on Android."); return; }
+        
+        // Stop Scream Detection if active to free up the microphone
+        if (screamActive) {
+            stopScreamDetection();
+            console.log("Stopped scream detection to use voice command.");
+        }
+
+        try {
+            const recognition = new SpeechRecognition();
+            recognition.lang = lang === 'hi' ? 'hi-IN' : 'en-US'; 
+            recognition.interimResults = false; 
+            recognition.maxAlternatives = 1;
+            
+            recognition.onstart = () => {
+                setIsListening(true);
+                alert("🎤 Mic is ON! Please say 'Help' or 'Bachao' loudly now.");
+            };
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                if (transcript.includes("help") || transcript.includes("emergency") || transcript.includes("sos") || transcript.includes("बचाओ") || transcript.includes("मदद")) {
+                    triggerSOS();
+                } else { 
+                    alert(`Heard: '${transcript}'. You need to say 'Help' or 'बचाओ' to trigger SOS.`); 
+                }
+            };
+            
+            recognition.onerror = (event) => { 
+                alert("Voice Error: " + event.error);
+                setIsListening(false); 
+            };
+            
+            recognition.onend = () => setIsListening(false);
+            recognition.start();
+        } catch(e) {
+            alert("Could not start Voice Command. Mic might be in use.");
+        }
     };
 
     const resetSearch = () => { setView('home'); setBaseRoutes([]); setRoutes([]); setSource(''); setDest(''); setIsARMode(false); };
@@ -863,28 +890,27 @@ const App = () => {
                                 <div style={{ fontSize: '4rem' }}>✅</div>
                                 <h1 style={{ color: 'white', marginTop: '1rem' }}>Emergency Alert Sent</h1>
                                 <p style={{ color: 'white', marginBottom: '2rem' }}>Live location shared. Audio evidence capturing...</p>
-                                
-                                <p style={{color: 'var(--text-muted)'}}>Enter PIN to Disarm</p>
-                                <div className="pin-display">
-                                    {enteredPin.padEnd(4, '•')}
-                                </div>
-                                <div className="pin-pad">
-                                    {[1,2,3,4,5,6,7,8,9].map(num => (
-                                        <div key={num} className="pin-btn" onClick={() => handlePinInput(num.toString())}>{num}</div>
-                                    ))}
-                                    <div className="pin-btn" style={{visibility: 'hidden'}}></div>
-                                    <div className="pin-btn" onClick={() => handlePinInput('0')}>0</div>
-                                    <div className="pin-btn" onClick={() => setEnteredPin('')} style={{fontSize: '1rem'}}>CLR</div>
-                                </div>
-                                <div style={{marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem'}}>Disarm: 1234 | Fake Disarm: 0000</div>
                             </>
                         ) : (
                             <>
                                 <div className="sos-countdown">{sosState}</div>
-                                <p style={{ color: 'white', marginTop: '2rem', fontSize: '1.5rem' }}>Sending Emergency Alert & Recording Audio...</p>
-                                <button onClick={completeDisarm} style={{ marginTop: '2rem', padding: '1rem 2rem', background: 'transparent', border: '2px solid white', color: 'white', borderRadius: '8px', cursor: 'pointer' }}>Cancel Alert</button>
+                                <p style={{ color: 'white', marginTop: '2rem', marginBottom: '2rem', fontSize: '1.5rem', textAlign: 'center' }}>Sending Emergency Alert & Recording Audio...</p>
                             </>
                         )}
+                        
+                        <p style={{color: 'var(--text-muted)'}}>Enter PIN to Disarm</p>
+                        <div className="pin-display">
+                            {enteredPin.padEnd(4, '•')}
+                        </div>
+                        <div className="pin-pad">
+                            {[1,2,3,4,5,6,7,8,9].map(num => (
+                                <div key={num} className="pin-btn" onClick={() => handlePinInput(num.toString())}>{num}</div>
+                            ))}
+                            <div className="pin-btn" style={{visibility: 'hidden'}}></div>
+                            <div className="pin-btn" onClick={() => handlePinInput('0')}>0</div>
+                            <div className="pin-btn" onClick={() => setEnteredPin('')} style={{fontSize: '1rem'}}>CLR</div>
+                        </div>
+                        <div style={{marginTop: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem'}}>Disarm: 1234 | Fake Disarm: 0000</div>
                     </div>
                 )}
 
