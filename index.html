@@ -257,66 +257,91 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
                 attribution: '© OpenStreetMap & CartoDB'
             }).addTo(map);
             mapRef.current = map;
-
-            // Initialize Routing
-            const routingControl = L.Routing.control({
-                waypoints: [],
-                lineOptions: { styles: [{color: '#f44336', opacity: 0.8, weight: 8}] },
-                addWaypoints: false,
-                draggableWaypoints: false,
-                show: false, // Hides text instructions
-                createMarker: function(i, wp, nWps) {
-                    if (i === 0) {
-                        return L.marker(wp.latLng, {
-                            icon: L.divIcon({ className: 'live-location-marker', html: '<div class="pulsing-dot"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })
-                        });
-                    } else if (i === nWps - 1) {
-                        return L.marker(wp.latLng, {
-                            icon: L.icon({ iconUrl: 'https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-512.png', iconSize: [30, 30], iconAnchor: [15, 30] })
-                        });
-                    }
-                    return null;
-                }
-            }).addTo(map);
-            routingControlRef.current = routingControl;
         }
 
         const map = mapRef.current;
-        const routingControl = routingControlRef.current;
 
-        // Apply route logic based on selection
+        // Cleanup previous elements
+        if (routingControlRef.current) {
+            map.removeControl(routingControlRef.current);
+        }
+        if (window.hazardMarkers) {
+            window.hazardMarkers.forEach(m => map.removeLayer(m));
+        }
+        window.hazardMarkers = [];
+
         const startPoint = L.latLng(28.6139, 77.2090); // CP
         const endPoint = L.latLng(28.6500, 77.2300);   // Old Delhi
 
-        // Clear previous listeners to avoid conflicts
-        routingControl.off('routesfound');
+        let waypoints = [];
+        let styles = [];
 
         if (route.id === 'r1') { // Fastest Route (Risky)
-            routingControl.on('routesfound', function(e) { 
-                this.options.lineOptions.styles = [
-                    {color: '#ffffff', opacity: 0.4, weight: 12}, // Outer Glow
-                    {color: '#f44336', opacity: 1, weight: 6}     // Core
-                ]; 
-            });
-            routingControl.setWaypoints([startPoint, endPoint]);
+            waypoints = [startPoint, endPoint];
+            styles = [{color: '#ef4444', opacity: 0.8, weight: 6, dashArray: '6, 10'}]; // Dashed red
         } else if (route.id === 'r2') { // Sentinel Safe Path
-            routingControl.on('routesfound', function(e) { 
-                this.options.lineOptions.styles = [
-                    {color: '#ffffff', opacity: 0.4, weight: 14}, // Outer Glow
-                    {color: '#10b981', opacity: 1, weight: 8}     // Safe Neon Green Core
-                ]; 
-            });
-            routingControl.setWaypoints([startPoint, L.latLng(28.6350, 77.2500), endPoint]);
+            waypoints = [startPoint, L.latLng(28.6350, 77.2500), endPoint];
+            styles = [
+                {color: '#ffffff', opacity: 0.4, weight: 14}, // Outer Glow
+                {color: '#10b981', opacity: 1, weight: 8}     // Safe Neon Green Core
+            ];
             map.flyTo([28.6300, 77.2300], 14, { duration: 1.5 });
         } else { // Well Lit Route
-            routingControl.on('routesfound', function(e) { 
-                this.options.lineOptions.styles = [
-                    {color: '#ffffff', opacity: 0.4, weight: 12}, 
-                    {color: '#f59e0b', opacity: 1, weight: 6}
-                ]; 
-            });
-            routingControl.setWaypoints([startPoint, L.latLng(28.6300, 77.2100), endPoint]);
+            waypoints = [startPoint, L.latLng(28.6300, 77.2100), endPoint];
+            styles = [
+                {color: '#ffffff', opacity: 0.4, weight: 12}, 
+                {color: '#f59e0b', opacity: 1, weight: 6}
+            ]; 
         }
+
+        // Drop visual hazard markers on the map
+        if (route.hazards && route.hazards.length > 0) {
+            const hazardCoords = route.id === 'r1' ? [
+                [28.6320, 77.2180], // Example danger zone 1
+                [28.6410, 77.2250]  // Example danger zone 2
+            ] : [
+                [28.6250, 77.2100]
+            ];
+
+            route.hazards.forEach((hazard, idx) => {
+                if (idx < hazardCoords.length) {
+                    const iconType = hazard.includes('🚧') ? '🚧' : hazard.includes('🌑') ? '🌑' : hazard.includes('⚠️') ? '⚠️' : '🚨';
+                    const marker = L.marker(hazardCoords[idx], {
+                        icon: L.divIcon({
+                            className: 'custom-hazard-marker',
+                            html: `<div style="font-size: 20px; background: rgba(0,0,0,0.7); border-radius: 50%; padding: 4px; box-shadow: 0 0 15px rgba(255,0,0,0.8); text-align: center; border: 1px solid rgba(255,0,0,0.5);">${iconType}</div>`,
+                            iconSize: [32, 32],
+                            iconAnchor: [16, 16]
+                        })
+                    }).addTo(map);
+                    
+                    marker.bindPopup(`<b style="color:#ef4444">Risk Warning:</b><br/>${hazard}`);
+                    window.hazardMarkers.push(marker);
+                }
+            });
+        }
+
+        const routingControl = L.Routing.control({
+            waypoints: waypoints,
+            lineOptions: { styles: styles },
+            addWaypoints: false,
+            draggableWaypoints: false,
+            show: false, // Hides text instructions
+            createMarker: function(i, wp, nWps) {
+                if (i === 0) {
+                    return L.marker(wp.latLng, {
+                        icon: L.divIcon({ className: 'live-location-marker', html: '<div class="pulsing-dot"></div>', iconSize: [20, 20], iconAnchor: [10, 10] })
+                    });
+                } else if (i === nWps - 1) {
+                    return L.marker(wp.latLng, {
+                        icon: L.icon({ iconUrl: 'https://cdn0.iconfinder.com/data/icons/small-n-flat/24/678111-map-marker-512.png', iconSize: [30, 30], iconAnchor: [15, 30] })
+                    });
+                }
+                return null;
+            }
+        }).addTo(map);
+
+        routingControlRef.current = routingControl;
 
     }, [route.id]);
 
