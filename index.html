@@ -250,20 +250,33 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
     useEffect(() => {
         if (!window.L || !mapDivRef.current) return;
 
-        if (!mapRef.current) {
-            // Initialize Map
-            const map = L.map(mapDivRef.current, { zoomControl: false }).setView([28.6139, 77.2090], 13);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap & CartoDB'
-            }).addTo(map);
-            mapRef.current = map;
+        // Ensure container is clean
+        if (mapDivRef.current._leaflet_id) {
+            mapDivRef.current._leaflet_id = null;
         }
 
+        const map = L.map(mapDivRef.current, { zoomControl: false }).setView([28.6139, 77.2090], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap & CartoDB'
+        }).addTo(map);
+        mapRef.current = map;
+
+        return () => {
+            if (mapRef.current) {
+                mapRef.current.remove();
+                mapRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!mapRef.current || !route) return;
         const map = mapRef.current;
 
         // Cleanup previous elements
         if (routingControlRef.current) {
             map.removeControl(routingControlRef.current);
+            routingControlRef.current = null;
         }
         if (window.hazardMarkers) {
             window.hazardMarkers.forEach(m => map.removeLayer(m));
@@ -343,7 +356,7 @@ const LeafletMap = ({ route, onReportClick, showHavens, isNav, t }) => {
 
         routingControlRef.current = routingControl;
 
-    }, [route.id]);
+    }, [route?.id]);
 
     return (
         <div className="map-container" style={{height: isNav ? '100%' : '300px', width: '100%', position: 'relative', borderRadius: '12px', overflow: 'hidden'}}>
