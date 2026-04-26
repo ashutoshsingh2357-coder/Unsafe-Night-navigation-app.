@@ -966,11 +966,28 @@ const App = () => {
 
                 {view === 'navigation' && (
                     <div className="fade-in" style={{height: '90vh', position: 'relative'}}>
-                        <div style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 30, background: 'var(--safe)', padding: '1rem 2rem', borderRadius: '12px', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 10px 30px rgba(16,185,129,0.5)' }}>
-                             <span style={{fontSize: '2rem'}}>⬆️</span>
+                        {/* Turn by turn navigation */}
+                        <div style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 30, background: 'rgba(15, 23, 42, 0.9)', padding: '1rem 2rem', borderRadius: '12px', color: 'white', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
+                             <span style={{fontSize: '2rem', color: '#3b82f6'}}>⬆️</span>
                              <div>
                                  <div style={{fontSize: '1.5rem', fontWeight: 'bold'}}>In 200m</div>
                                  <div>Continue straight on {selectedRoute?.name || 'Main St'}</div>
+                             </div>
+                        </div>
+
+                        {/* Safety Score Card (Top Right) */}
+                        <div style={{ 
+                            position: 'absolute', top: '1rem', right: '1rem', zIndex: 30, 
+                            background: selectedRoute?.status === 'danger' ? '#fee2e2' : selectedRoute?.status === 'moderate' ? '#fef3c7' : '#dcfce7', 
+                            color: selectedRoute?.status === 'danger' ? '#dc2626' : selectedRoute?.status === 'moderate' ? '#d97706' : '#15803d', 
+                            border: `2px solid ${selectedRoute?.status === 'danger' ? '#fecaca' : selectedRoute?.status === 'moderate' ? '#fde68a' : '#bbf7d0'}`, 
+                            padding: '0.8rem 1.5rem', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', 
+                            boxShadow: '0 10px 25px rgba(0,0,0,0.5)', minWidth: '120px' 
+                        }}>
+                             <div style={{fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase'}}>Safety Score</div>
+                             <div style={{fontSize: '2.5rem', fontWeight: '900', margin: '0.2rem 0'}}>{selectedRoute?.score || 100}</div>
+                             <div style={{fontSize: '0.7rem', fontWeight: 'bold'}}>
+                                 {selectedRoute?.status === 'danger' ? '⚠️ High Risk' : selectedRoute?.status === 'moderate' ? '⚠️ Be Careful' : '✅ Verified Safe'}
                              </div>
                         </div>
                         
