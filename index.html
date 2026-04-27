@@ -586,7 +586,12 @@ const App = () => {
             DeviceMotionEvent.requestPermission()
                 .then(state => { if (state === 'granted') alert("Fall Sensors Active"); else alert("Sensor Permission Denied"); })
                 .catch(console.error);
-        } else { alert("Sensors already active or not supported."); }
+        } else { 
+            alert("Hardware motion sensors not detected (PC/Laptop mode). Simulating a 'Fall Detection' in 3 seconds for Hackathon Demo..."); 
+            setTimeout(() => {
+                setFallCountdown(10);
+            }, 3000);
+        }
     };
 
     useEffect(() => {
