@@ -26,7 +26,7 @@ We assign a **Dynamic Safety Score (0–100)** to every route, calculated in rea
     * **Voice Control:** Hands-free operation using simple voice commands like "Unsafe Night Navigation, help."
 
 ### 🔗 Prototype & Demo
-* **Live Prototype Link:** [https://github.com/ashutoshsingh2357-coder/Unsafe-night-navigation-app.git]
+* **Live Prototype Link:** [https://ashutoshsingh2357-coder.github.io/Unsafe-Night-navigation-app./]
 * **Demo Video:** [https://drive.google.com/drive/folders/1Piqej9xCHF72QRhyk-gA0p7gCJe61li-]
 
 ### 🛠 Tech Stack
