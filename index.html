@@ -632,35 +632,37 @@ const LeafletMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                 console.error("Google Places Safe Havens failed:", e);
             }
         } else {
-            // Free Fallback via Nominatim Search for Police
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=police&lat=${midLat}&lon=${midLng}&limit=3`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.length > 0 && mapRef.current) {
-                        data.forEach(place => {
-                            const marker = L.marker([parseFloat(place.lat), parseFloat(place.lon)], {
+            // Google Places API Fallback for Safe Havens (Police + Hospital)
+            try {
+                const midLatLng = new window.google.maps.LatLng(midLat, midLng);
+                const placesService = new window.google.maps.places.PlacesService(document.createElement('div'));
+                // Police Stations
+                placesService.nearbySearch({ location: midLatLng, radius: 5000, type: 'police' }, (results, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && results && mapRef.current) {
+                        results.slice(0, 3).forEach(place => {
+                            const marker = L.marker([place.geometry.location.lat(), place.geometry.location.lng()], {
                                 icon: L.divIcon({ className: 'custom-safe-haven-marker', html: `<div style="font-size: 20px; background: rgba(0,0,0,0.8); border-radius: 50%; padding: 4px; box-shadow: 0 0 15px rgba(59,130,246,0.8); text-align: center; border: 1.5px solid rgba(59,130,246,0.7);">🚔</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                             }).addTo(mapRef.current);
-                            marker.bindPopup(`<b>🚔 ${place.display_name.split(',')[0]}</b><br/>${place.display_name}`);
+                            marker.bindPopup(`<b>🚔 ${place.name}</b><br/>${place.vicinity || 'Police Station'}`);
                             window.hazardMarkers.push(marker);
                         });
                     }
-                }).catch(e => console.error("OSM Police search failed:", e));
-
-            // Free Fallback via Nominatim Search for Hospital
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=hospital&lat=${midLat}&lon=${midLng}&limit=3`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.length > 0 && mapRef.current) {
-                        data.forEach(place => {
-                            const marker = L.marker([parseFloat(place.lat), parseFloat(place.lon)], {
+                });
+                // Hospitals
+                placesService.nearbySearch({ location: midLatLng, radius: 5000, type: 'hospital' }, (results, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && results && mapRef.current) {
+                        results.slice(0, 3).forEach(place => {
+                            const marker = L.marker([place.geometry.location.lat(), place.geometry.location.lng()], {
                                 icon: L.divIcon({ className: 'custom-safe-haven-marker', html: `<div style="font-size: 20px; background: rgba(0,0,0,0.8); border-radius: 50%; padding: 4px; box-shadow: 0 0 15px rgba(59,130,246,0.8); text-align: center; border: 1.5px solid rgba(59,130,246,0.7);">🏥</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                             }).addTo(mapRef.current);
-                            marker.bindPopup(`<b>🏥 ${place.display_name.split(',')[0]}</b><br/>${place.display_name}`);
+                            marker.bindPopup(`<b>🏥 ${place.name}</b><br/>${place.vicinity || 'Hospital'}`);
                             window.hazardMarkers.push(marker);
                         });
                     }
-                }).catch(e => console.error("OSM Hospital search failed:", e));
+                });
+            } catch (e) {
+                console.error("Google Places Safe Havens fallback failed:", e);
+            }
         }
     };
 
@@ -688,20 +690,24 @@ const LeafletMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                 console.error("Google Places lodging search failed:", e);
             }
         } else {
-            // Free Fallback via Nominatim Search for lodging
-            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=hotel&lat=${endCoords[0]}&lon=${endCoords[1]}&limit=8`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data && data.length > 0 && mapRef.current) {
-                        data.forEach(hotel => {
-                            const marker = L.marker([parseFloat(hotel.lat), parseFloat(hotel.lon)], {
+            // Google Places API Fallback for Hotels/Lodging
+            try {
+                const endLatLng = new window.google.maps.LatLng(endCoords[0], endCoords[1]);
+                const placesService = new window.google.maps.places.PlacesService(document.createElement('div'));
+                placesService.nearbySearch({ location: endLatLng, radius: 3000, type: 'lodging' }, (results, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && results && mapRef.current) {
+                        results.slice(0, 8).forEach(hotel => {
+                            const hotelMarker = L.marker([hotel.geometry.location.lat(), hotel.geometry.location.lng()], {
                                 icon: L.divIcon({ className: 'custom-hotel-marker', html: `<div style="font-size: 20px; background: rgba(0,0,0,0.8); border-radius: 50%; padding: 4px; box-shadow: 0 0 15px rgba(139,92,246,0.8); text-align: center; border: 1.5px solid rgba(139,92,246,0.7);">🏨</div>`, iconSize: [32, 32], iconAnchor: [16, 16] })
                             }).addTo(mapRef.current);
-                            marker.bindPopup(`<b>🏨 ${hotel.display_name.split(',')[0]}</b><br/>${hotel.display_name}`);
-                            window.hazardMarkers.push(marker);
+                            hotelMarker.bindPopup(`<b>🏨 ${hotel.name}</b><br/>${hotel.vicinity || 'Nearby lodging'}${hotel.rating ? '<br/>⭐ ' + hotel.rating + '/5' : ''}`);
+                            window.hazardMarkers.push(hotelMarker);
                         });
                     }
-                }).catch(e => console.error("OSM Hotel search failed:", e));
+                });
+            } catch (e) {
+                console.error("Google Places Hotels fallback failed:", e);
+            }
         }
     };
 
@@ -1326,8 +1332,8 @@ const LeafletMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
             const googleRouter = {
                 route: function(wps, cb, context, options) {
                     if (!USE_GOOGLE_MAPS || window._googleMapsAuthFailed || !window.google || !window.google.maps || !window.google.maps.DirectionsService) {
-                        const osrm = L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' });
-                        return osrm.route(wps, cb, context, options);
+                        cb.call(context, { message: 'Google Maps unavailable. Please check your API key and internet connection.' }, null);
+                        return;
                     }
 
                     const origin = { lat: wps[0].latLng.lat, lng: wps[0].latLng.lng };
@@ -1393,9 +1399,8 @@ const LeafletMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                             window._directionCache[cacheKey] = results;
                             cb.call(context, null, results);
                         } else {
-                            console.warn("Google Directions Service failed, falling back to OSRM:", status);
-                            const osrm = L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1' });
-                            osrm.route(wps, cb, context, options);
+                            console.warn("Google Directions Service failed:", status);
+                            cb.call(context, { message: 'Route not found via Google Maps. Please try different locations or check your internet connection.' }, null);
                         }
                     });
                 }
@@ -1725,23 +1730,35 @@ const geocodeAddress = async (query, biasCoords = null) => {
         }
     }
 
-    // Fallback: OpenStreetMap Nominatim Geocoder
+    // Fallback: Google Places Text Search
     try {
-        let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=1`;
-        if (biasCoords && biasCoords.length === 2 && typeof biasCoords[0] === 'number') {
-            url += `&viewbox=${biasCoords[1]-0.1},${biasCoords[0]+0.1},${biasCoords[1]+0.1},${biasCoords[0]-0.1}&bounded=1`;
-        }
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data && data.length > 0) {
-            return {
-                lat: parseFloat(data[0].lat),
-                lng: parseFloat(data[0].lon),
-                name: data[0].display_name.split(',')[0]
-            };
+        if (window.google && window.google.maps && window.google.maps.places) {
+            const placesService = new window.google.maps.places.PlacesService(document.createElement('div'));
+            const request = { query: query + ', India', fields: ['geometry', 'name', 'formatted_address'] };
+            if (biasCoords && biasCoords.length === 2) {
+                request.locationBias = new window.google.maps.Circle({
+                    center: { lat: biasCoords[0], lng: biasCoords[1] },
+                    radius: 10000
+                });
+            }
+            const result = await new Promise((resolve) => {
+                placesService.findPlaceFromQuery(request, (results, status) => {
+                    if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+                        const loc = results[0].geometry.location;
+                        resolve({
+                            lat: loc.lat(),
+                            lng: loc.lng(),
+                            name: results[0].name || results[0].formatted_address?.split(',')[0]
+                        });
+                    } else {
+                        resolve(null);
+                    }
+                });
+            });
+            if (result) return result;
         }
     } catch (e) {
-        console.error("OSM Nominatim Geocoding failed:", e);
+        console.error("Google Places Text Search geocoding failed:", e);
     }
 
     return null;
