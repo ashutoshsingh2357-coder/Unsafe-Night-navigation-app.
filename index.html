@@ -727,7 +727,9 @@ const LeafletMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
             mapDivRef.current._leaflet_id = null;
         }
 
-        const map = L.map(mapDivRef.current, { zoomControl: false }).setView([28.6139, 77.2090], 13);
+        const map = L.map(mapDivRef.current, { zoomControl: false, attributionControl: true }).setView([28.6139, 77.2090], 13);
+        // Remove "Leaflet" prefix — show only "© Google Maps"
+        map.attributionControl.setPrefix('');
         const initialUrl = mapStyle === 'satellite'
             ? 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
             : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
