@@ -593,3 +593,424 @@ body {
 .fade-in {
   animation: fadeIn 0.5s ease forwards;
 }
+
+/* ============================================================
+   FEATURE 1: Trusted Circle (Emergency Contacts)
+   ============================================================ */
+.trusted-circle-panel {
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.contact-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+  animation: slideInUp 0.4s ease backwards;
+}
+.contact-card:nth-child(2) { animation-delay: 0.05s; }
+.contact-card:nth-child(3) { animation-delay: 0.1s; }
+.contact-card:nth-child(4) { animation-delay: 0.15s; }
+
+.contact-card:hover {
+  background: rgba(59,130,246,0.08);
+  border-color: rgba(59,130,246,0.25);
+  transform: translateX(4px);
+}
+
+.contact-avatar {
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.contact-avatar.family { background: linear-gradient(135deg, #10b981, #059669); }
+.contact-avatar.friend { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.contact-avatar.emergency { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.contact-avatar.other { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+.contact-info { flex: 1; min-width: 0; }
+.contact-name { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
+.contact-phone { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+.contact-rel { font-size: 0.65rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+.contact-actions {
+  display: flex; gap: 0.4rem; flex-shrink: 0;
+}
+.contact-actions button {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05);
+  color: white; font-size: 0.9rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s ease;
+}
+.contact-actions button:hover { background: rgba(255,255,255,0.15); transform: scale(1.1); }
+
+.add-contact-btn {
+  width: 100%; padding: 0.9rem; border-radius: 14px;
+  border: 2px dashed rgba(59,130,246,0.35);
+  background: rgba(59,130,246,0.06);
+  color: var(--accent); font-weight: 600; font-size: 0.9rem;
+  cursor: pointer; transition: all 0.3s ease;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.add-contact-btn:hover { background: rgba(59,130,246,0.15); border-color: var(--accent); }
+
+/* ============================================================
+   FEATURE 2: Safety Check-In Timer
+   ============================================================ */
+.checkin-banner {
+  position: absolute; top: 5.5rem; left: 1rem; right: 1rem;
+  z-index: 35; padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, rgba(245,158,11,0.9), rgba(217,119,6,0.9));
+  border-radius: 14px; display: flex; align-items: center; gap: 1rem;
+  box-shadow: 0 8px 25px rgba(245,158,11,0.3);
+  backdrop-filter: blur(10px);
+  animation: slideInUp 0.3s ease;
+}
+.checkin-banner.urgent {
+  background: linear-gradient(135deg, rgba(239,68,68,0.95), rgba(185,28,28,0.95));
+  box-shadow: 0 8px 25px rgba(239,68,68,0.4);
+  animation: pulse-red-bg 1s infinite;
+}
+@keyframes pulse-red-bg {
+  0%, 100% { box-shadow: 0 8px 25px rgba(239,68,68,0.4); }
+  50% { box-shadow: 0 8px 35px rgba(239,68,68,0.7); }
+}
+
+.checkin-timer-text {
+  font-size: 1.5rem; font-weight: 800; color: white;
+  font-variant-numeric: tabular-nums;
+  min-width: 60px;
+}
+.checkin-info { flex: 1; }
+.checkin-info .label { font-size: 0.7rem; color: rgba(255,255,255,0.8); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.checkin-info .progress-bar { height: 4px; background: rgba(255,255,255,0.25); border-radius: 4px; margin-top: 4px; overflow: hidden; }
+.checkin-info .progress-bar .fill { height: 100%; background: white; border-radius: 4px; transition: width 1s linear; }
+
+.checkin-safe-btn {
+  padding: 0.5rem 1rem; border-radius: 10px;
+  background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.5);
+  color: white; font-weight: 700; font-size: 0.8rem;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.checkin-safe-btn:hover { background: rgba(255,255,255,0.4); }
+
+.checkin-modal-options {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
+  margin: 1rem 0;
+}
+.checkin-option {
+  padding: 1.25rem; border-radius: 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white; text-align: center; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.checkin-option:hover { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.5); }
+.checkin-option .time { font-size: 1.8rem; font-weight: 800; }
+.checkin-option .unit { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ============================================================
+   FEATURE 3: Heatmap Legend
+   ============================================================ */
+.heatmap-legend {
+  position: absolute; bottom: 3.5rem; left: 1rem; z-index: 1000;
+  background: rgba(0,0,0,0.85); padding: 0.6rem 0.8rem;
+  border-radius: 10px; backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.1);
+  animation: fadeIn 0.3s ease;
+}
+.heatmap-legend .title { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.3rem; }
+.heatmap-gradient {
+  width: 120px; height: 8px;
+  background: linear-gradient(90deg, #10b981, #f59e0b, #ef4444);
+  border-radius: 4px; margin-bottom: 0.2rem;
+}
+.heatmap-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-muted); }
+
+/* ============================================================
+   FEATURE 4: Walk Me Home Companion
+   ============================================================ */
+.companion-card {
+  position: absolute; bottom: 5.5rem; left: 1rem; z-index: 35;
+  background: linear-gradient(160deg, rgba(8,15,40,0.95), rgba(16,24,56,0.95));
+  border: 1px solid rgba(59,130,246,0.3); border-radius: 16px;
+  padding: 0.85rem 1rem; width: 260px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+  animation: slideInUp 0.3s ease;
+}
+.companion-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.companion-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; box-shadow: 0 0 15px rgba(139,92,246,0.4);
+}
+.companion-name { font-weight: 700; font-size: 0.85rem; color: white; }
+.companion-status { font-size: 0.65rem; color: #a78bfa; display: flex; align-items: center; gap: 0.3rem; }
+.companion-status .dot { width: 5px; height: 5px; background: #10b981; border-radius: 50%; }
+
+.companion-progress { margin-bottom: 0.5rem; }
+.companion-progress .bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; }
+.companion-progress .bar .fill { height: 100%; background: linear-gradient(90deg, #8b5cf6, #10b981); border-radius: 6px; transition: width 0.5s ease; }
+.companion-progress .stats { display: flex; justify-content: space-between; margin-top: 3px; font-size: 0.65rem; color: var(--text-muted); }
+
+.companion-message {
+  font-size: 0.75rem; color: #c4b5fd;
+  padding: 0.4rem 0.6rem; background: rgba(139,92,246,0.1);
+  border-radius: 8px; border: 1px solid rgba(139,92,246,0.15);
+  line-height: 1.4;
+}
+
+.companion-close {
+  position: absolute; top: 0.5rem; right: 0.5rem;
+  background: rgba(255,255,255,0.08); border: none;
+  color: white; width: 22px; height: 22px; border-radius: 50%;
+  font-size: 0.7rem; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+}
+
+/* ============================================================
+   FEATURE 5: Trip History & Safety Log
+   ============================================================ */
+.trip-history-panel {
+  max-width: 700px; margin: 0 auto; width: 100%;
+}
+
+.trip-stats-summary {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem; margin-bottom: 1.5rem;
+}
+.trip-stat-card {
+  padding: 1.25rem; border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+}
+.trip-stat-card .value { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+.trip-stat-card .label { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.trip-card {
+  padding: 1.25rem; border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 0.75rem;
+  transition: all 0.3s ease;
+  animation: slideInUp 0.4s ease backwards;
+}
+.trip-card:hover { background: rgba(255,255,255,0.07); transform: translateX(4px); }
+
+.trip-card .trip-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+.trip-card .trip-date { font-size: 0.72rem; color: var(--text-muted); }
+.trip-card .trip-route { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.5rem; }
+.trip-card .trip-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--text-muted); }
+.trip-card .trip-meta span { display: flex; align-items: center; gap: 0.3rem; }
+.trip-card .trip-delete {
+  background: none; border: none; color: rgba(239,68,68,0.6);
+  cursor: pointer; font-size: 0.8rem; padding: 0.2rem;
+  transition: color 0.2s; 
+}
+.trip-card .trip-delete:hover { color: #ef4444; }
+
+/* ============================================================
+   FEATURE 6: Geofence Toast Notifications
+   ============================================================ */
+.geofence-toast {
+  position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+  z-index: 200; padding: 0.85rem 1.5rem;
+  border-radius: 14px; display: flex; align-items: center; gap: 0.75rem;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  backdrop-filter: blur(15px);
+  animation: toastSlideIn 0.4s ease, toastSlideOut 0.4s ease 3.6s forwards;
+  max-width: 90%; white-space: nowrap;
+}
+.geofence-toast.danger {
+  background: linear-gradient(135deg, rgba(239,68,68,0.92), rgba(185,28,28,0.92));
+  border: 1px solid rgba(239,68,68,0.5);
+}
+.geofence-toast.safe {
+  background: linear-gradient(135deg, rgba(16,185,129,0.92), rgba(5,150,105,0.92));
+  border: 1px solid rgba(16,185,129,0.5);
+}
+.geofence-toast .icon { font-size: 1.5rem; }
+.geofence-toast .text { color: white; font-weight: 600; font-size: 0.85rem; }
+.geofence-toast .subtext { color: rgba(255,255,255,0.8); font-size: 0.7rem; font-weight: 400; }
+
+@keyframes toastSlideIn {
+  from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+@keyframes toastSlideOut {
+  from { transform: translateX(-50%) translateY(0); opacity: 1; }
+  to { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+}
+
+/* ============================================================
+   FEATURE 7: Group Walk Mode
+   ============================================================ */
+.group-panel {
+  position: fixed; top: 50%; right: 1rem; transform: translateY(-50%);
+  z-index: 40; width: 220px;
+  background: linear-gradient(160deg, rgba(8,15,40,0.95), rgba(16,24,56,0.95));
+  border: 1px solid rgba(139,92,246,0.3); border-radius: 16px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+  animation: slideInRight 0.3s ease;
+  overflow: hidden;
+}
+@keyframes slideInRight {
+  from { transform: translateY(-50%) translateX(100%); opacity: 0; }
+  to { transform: translateY(-50%) translateX(0); opacity: 1; }
+}
+
+.group-panel-header {
+  padding: 0.85rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.group-panel-header .title { font-weight: 700; font-size: 0.85rem; color: white; }
+.group-panel-header .code { font-size: 0.65rem; color: #a78bfa; font-family: monospace; }
+
+.group-member {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.2s;
+}
+.group-member:hover { background: rgba(255,255,255,0.04); }
+.group-member:last-child { border-bottom: none; }
+
+.group-member .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: white;
+  flex-shrink: 0;
+}
+.group-member .info { flex: 1; min-width: 0; }
+.group-member .name { font-size: 0.78rem; font-weight: 600; color: white; }
+.group-member .dist { font-size: 0.62rem; color: var(--text-muted); }
+.group-member .status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.group-member .status-dot.online { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.group-member .status-dot.sos { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: pulse-red 1s infinite; }
+
+.group-panel-close {
+  background: rgba(255,255,255,0.08); border: none; color: white;
+  width: 24px; height: 24px; border-radius: 50%;
+  font-size: 0.75rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.group-setup-modal {
+  display: flex; flex-direction: column; gap: 0.75rem;
+  padding: 1rem;
+}
+.group-code-display {
+  font-size: 2rem; font-weight: 800; letter-spacing: 0.5rem;
+  text-align: center; color: #a78bfa; padding: 1rem;
+  background: rgba(139,92,246,0.1); border-radius: 12px;
+  border: 1px dashed rgba(139,92,246,0.4);
+  font-family: monospace;
+}
+
+/* ============================================================
+   FEATURE 8: Shake-to-SOS Indicator
+   ============================================================ */
+.shake-indicator {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.75rem; padding: 0.25rem 0.5rem;
+  border-radius: 8px; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.shake-indicator.active {
+  background: rgba(16,185,129,0.2);
+  border: 1px solid rgba(16,185,129,0.5);
+  color: white;
+}
+.shake-indicator.inactive {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-muted);
+}
+.shake-indicator.active .icon { animation: shake 0.5s infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px) rotate(-5deg); }
+  75% { transform: translateX(3px) rotate(5deg); }
+}
+
+/* ============================================================
+   RESPONSIVE ADJUSTMENTS FOR NEW FEATURES
+   ============================================================ */
+@media (max-width: 600px) {
+  .trip-stats-summary { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .trip-stat-card .value { font-size: 1.3rem; }
+  .trip-stat-card { padding: 0.85rem; }
+  .checkin-modal-options { grid-template-columns: repeat(2, 1fr); }
+  .group-panel { width: 190px; right: 0.5rem; }
+  .companion-card { width: 220px; }
+}
+
+/* ============================================================
+   DESKTOP MOCK PHONE LAYOUT CONSTRAINT
+   ============================================================ */
+@media (min-width: 600px) {
+  body {
+    background-color: #080b11;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+  }
+  .bg-animation {
+    width: 100vw;
+    height: 100vh;
+    transform: none !important;
+  }
+  .app-container {
+    max-width: 480px;
+    height: 92vh;
+    height: 92dvh;
+    border-radius: 40px;
+    border: 10px solid #1e293b; /* Sleek bezel styling */
+    box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    position: relative;
+    background-color: #0b0f19;
+  }
+  .bottom-nav {
+    position: absolute !important;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    transform: none;
+    border-top: 1px solid var(--panel-border);
+  }
+  .sos-btn, .voice-btn, .ai-fab {
+    position: absolute !important;
+  }
+  .sos-active-overlay, .modal-overlay, .fake-call-screen, .geofence-toast, .group-panel {
+    position: absolute !important;
+  }
+  .ar-video-bg {
+    position: absolute !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
