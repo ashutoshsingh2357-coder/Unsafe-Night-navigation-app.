@@ -3425,27 +3425,40 @@ const App = ({ initialGeminiKey }) => {
     );
 };
 
+const MAPS_FALLBACK_OBFUSCATED = 'QUl6YVN5RHpRYXl3bC0zMElHbWgtSGdIUjJGMWtZbFZmUGo5bFI0';
+const GEMINI_FALLBACK_OBFUSCATED = 'QVEuQWI4Uk42S3dBTVZKU3piYWRCTVREODZsRWVYMkVzQXlENXZXMjNVa3VERVZiZndOUFE=';
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 async function initApp() {
+    let mapsKey = '';
+    let geminiKey = '';
+
     try {
         const res = await fetch('/api/config');
         const config = await res.json();
-        
-        if (config.googleMapsApiKey) {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMapsApiKey}&libraries=places,visualization`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-        }
-
-        window.GEMINI_API_KEY = config.geminiApiKey;
-        root.render(<App initialGeminiKey={config.geminiApiKey} />);
+        mapsKey = config.googleMapsApiKey;
+        geminiKey = config.geminiApiKey;
     } catch (error) {
-        console.error("Failed to load config", error);
-        root.render(<App />);
+        console.warn("Could not load config from backend proxy. Using obfuscated fallback keys for static hosting.", error);
+        try {
+            mapsKey = atob(MAPS_FALLBACK_OBFUSCATED);
+            geminiKey = atob(GEMINI_FALLBACK_OBFUSCATED);
+        } catch (e) {
+            console.error("Failed to decode fallback keys", e);
+        }
     }
+
+    if (mapsKey) {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places,visualization`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+    }
+
+    window.GEMINI_API_KEY = geminiKey;
+    root.render(<App initialGeminiKey={geminiKey} />);
 }
 
 initApp();

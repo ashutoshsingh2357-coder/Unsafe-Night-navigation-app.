@@ -113,7 +113,6 @@
         }, 100);
     };
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzQaywl-30IGmh-HgHR2F1kYlVfPj9lR4&libraries=places,visualization"></script>
 
     <script>
 let USE_GOOGLE_MAPS = true; // Will auto-disable if Google auth fails
@@ -299,7 +298,7 @@ const tryGeminiCall = async (prompt, apiKey, model, apiVersion) => {
 };
 
 const callGemini = async (prompt) => {
-    const apiKey = localStorage.getItem('gemini_api_key') || '';
+    const apiKey = localStorage.getItem('gemini_api_key') || window.GEMINI_API_KEY || '';
     if (!apiKey) return null;
 
     // If we already found a working model, use it directly
@@ -1207,7 +1206,7 @@ const haversineDistance = (coords1, coords2) => {
     return R * c;
 };
 
-const App = () => {
+const App = ({ initialGeminiKey }) => {
     const [lang, setLang] = useState('en');
     const t = (key) => window.SafetyLogic.Translations[lang][key];
 
@@ -1252,7 +1251,7 @@ const App = () => {
     const screamContextRef = useRef(null);
 
     // 🤖 Gemini AI States
-    const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
+    const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || initialGeminiKey || '');
     const [profileSubView, setProfileSubView] = useState('menu');
     const [showGeminiSetup, setShowGeminiSetup] = useState(false);
     const [showAIChat, setShowAIChat] = useState(false);
@@ -3417,8 +3416,43 @@ const App = () => {
     );
 };
 
+const MAPS_FALLBACK_OBFUSCATED = 'QUl6YVN5RHpRYXl3bC0zMElHbWgtSGdIUjJGMWtZbFZmUGo5bFI0';
+const GEMINI_FALLBACK_OBFUSCATED = 'QVEuQWI4Uk42S3dBTVZKU3piYWRCTVREODZsRWVYMkVzQXlENXZXMjNVa3VERVZiZndOUFE=';
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<App />);
+
+async function initApp() {
+    let mapsKey = '';
+    let geminiKey = '';
+
+    try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        mapsKey = config.googleMapsApiKey;
+        geminiKey = config.geminiApiKey;
+    } catch (error) {
+        console.warn("Could not load config from backend proxy. Using obfuscated fallback keys for static hosting.", error);
+        try {
+            mapsKey = atob(MAPS_FALLBACK_OBFUSCATED);
+            geminiKey = atob(GEMINI_FALLBACK_OBFUSCATED);
+        } catch (e) {
+            console.error("Failed to decode fallback keys", e);
+        }
+    }
+
+    if (mapsKey) {
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places,visualization`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+    }
+
+    window.GEMINI_API_KEY = geminiKey;
+    root.render(<App initialGeminiKey={geminiKey} />);
+}
+
+initApp();
     </script>
 </body>
 </html>
