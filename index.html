@@ -810,26 +810,43 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                 });
                 infoWinRef.current.open(map);
 
+                let address = null;
                 try {
                     const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
                     const data = await response.json();
                     if (response.ok && data.status === 'OK' && data.results && data.results.length > 0) {
-                        const address = data.results[0].formatted_address;
-                        infoWinRef.current.setContent(`
-                            <div style="color:#37352f;font-family:sans-serif;font-size:11px;max-width:200px;padding:2px;">
-                                <div style="font-weight:bold;margin-bottom:3px;color:#2383e2;font-size:12px;">📍 Pinned Location</div>
-                                <div style="margin-bottom:6px;line-height:1.35;color:#4b5563;">${address}</div>
-                                <div style="font-family:monospace;font-size:9px;color:#9ca3af;border-top:1px dashed #e5e7eb;padding-top:4px;">
-                                    ${lat.toFixed(6)}, ${lng.toFixed(6)}
-                                </div>
-                            </div>
-                        `);
+                        address = data.results[0].formatted_address;
                     } else {
-                        infoWinRef.current.setContent(`<div style="color:black;font-family:sans-serif;font-size:11px;padding:4px;">❌ Address not found.</div>`);
+                        throw new Error("Proxy reverse geocode failed");
                     }
                 } catch (err) {
-                    console.error('Reverse Geocode click error:', err);
-                    infoWinRef.current.setContent(`<div style="color:black;font-family:sans-serif;font-size:11px;padding:4px;">❌ Service error.</div>`);
+                    console.warn("Secure Reverse Geocoding failed, falling back to client-side Geocoder:", err);
+                    if (window.google && window.google.maps) {
+                        address = await new Promise((resolve) => {
+                            const geocoder = new google.maps.Geocoder();
+                            geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+                                if (status === 'OK' && results && results.length > 0) {
+                                    resolve(results[0].formatted_address);
+                                } else {
+                                    resolve(null);
+                                }
+                            });
+                        });
+                    }
+                }
+
+                if (address) {
+                    infoWinRef.current.setContent(`
+                        <div style="color:#37352f;font-family:sans-serif;font-size:11px;max-width:200px;padding:2px;">
+                            <div style="font-weight:bold;margin-bottom:3px;color:#2383e2;font-size:12px;">📍 Pinned Location</div>
+                            <div style="margin-bottom:6px;line-height:1.35;color:#4b5563;">${address}</div>
+                            <div style="font-family:monospace;font-size:9px;color:#9ca3af;border-top:1px dashed #e5e7eb;padding-top:4px;">
+                                ${lat.toFixed(6)}, ${lng.toFixed(6)}
+                            </div>
+                        </div>
+                    `);
+                } else {
+                    infoWinRef.current.setContent(`<div style="color:black;font-family:sans-serif;font-size:11px;padding:4px;">❌ Address not found.</div>`);
                 }
             });
         };
@@ -942,6 +959,7 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
             } else {
                 // Call secure backend proxy for fallback directions drawing
                 (async () => {
+                    let path = null;
                     try {
                         const wps = stc ? [stc] : [];
                         const routeResp = await fetch('/api/routes', {
@@ -956,18 +974,45 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                         });
                         const routeData = await routeResp.json();
                         if (routeResp.ok && routeData.routes && routeData.routes.length > 0) {
-                            const path = decodePolyline(routeData.routes[0].polyline.encodedPolyline).map(p => [p.lat, p.lng]);
-                            drawRoute(path);
-                            placeMarkers(path);
-                            const bounds = new window.google.maps.LatLngBounds();
-                            path.forEach(c => bounds.extend({lat:c[0],lng:c[1]}));
-                            map.fitBounds(bounds, {top:80, right:30, bottom:150, left:30});
-                            if (isNav) initNav(path, map);
+                            path = decodePolyline(routeData.routes[0].polyline.encodedPolyline).map(p => [p.lat, p.lng]);
                         } else {
-                            placeMarkers(null); map.setCenter(sLL);
+                            throw new Error("Proxy routing failed");
                         }
                     } catch (err) {
-                        console.error("Map fallback secure routing failed:", err);
+                        console.warn("Map fallback secure routing failed, trying client-side DirectionsService:", err);
+                        if (window.google && window.google.maps) {
+                            path = await new Promise((resolve) => {
+                                const ds = new google.maps.DirectionsService();
+                                const request = {
+                                    origin: new google.maps.LatLng(sc[0], sc[1]),
+                                    destination: new google.maps.LatLng(ec[0], ec[1]),
+                                    travelMode: google.maps.TravelMode[travelMode.toUpperCase()] || google.maps.TravelMode.DRIVING
+                                };
+                                if (stc) {
+                                    request.waypoints = [{
+                                        location: new google.maps.LatLng(stc[0], stc[1]),
+                                        stopover: true
+                                    }];
+                                }
+                                ds.route(request, (result, status) => {
+                                    if (status === 'OK' && result && result.routes && result.routes.length > 0) {
+                                        resolve(result.routes[0].overview_path.map(p => [p.lat(), p.lng()]));
+                                    } else {
+                                        resolve(null);
+                                    }
+                                });
+                            });
+                        }
+                    }
+
+                    if (path) {
+                        drawRoute(path);
+                        placeMarkers(path);
+                        const bounds = new window.google.maps.LatLngBounds();
+                        path.forEach(c => bounds.extend({lat:c[0],lng:c[1]}));
+                        map.fitBounds(bounds, {top:80, right:30, bottom:150, left:30});
+                        if (isNav) initNav(path, map);
+                    } else {
                         placeMarkers(null); map.setCenter(sLL);
                     }
                 })();
@@ -1214,9 +1259,33 @@ const geocodeAddress = async (query, biasCoords = null) => {
                 lng: loc.lng,
                 name: data.results[0].formatted_address.split(',')[0]
             };
+        } else {
+            throw new Error("Proxy geocoding failed");
         }
     } catch (e) {
-        console.error("Secure Geocoding failed:", e);
+        console.warn("Secure Geocoding failed, falling back to client-side Geocoder:", e);
+        if (window.google && window.google.maps) {
+            return new Promise((resolve) => {
+                try {
+                    const geocoder = new google.maps.Geocoder();
+                    geocoder.geocode({ address: query }, (results, status) => {
+                        if (status === 'OK' && results && results.length > 0) {
+                            const loc = results[0].geometry.location;
+                            resolve({
+                                lat: loc.lat(),
+                                lng: loc.lng(),
+                                name: results[0].formatted_address.split(',')[0]
+                            });
+                        } else {
+                            resolve(null);
+                        }
+                    });
+                } catch (err) {
+                    console.error("Client-side geocoder error:", err);
+                    resolve(null);
+                }
+            });
+        }
     }
     return null;
 };
@@ -2237,9 +2306,55 @@ const App = ({ initialGeminiKey }) => {
                             coords: path.map(p => [p.lat, p.lng])
                         };
                     });
+                } else {
+                    throw new Error("Proxy directions failed");
                 }
             } catch (err) {
-                console.error("Secure directions proxy request failed:", err);
+                console.warn("Secure directions proxy request failed, falling back to client-side DirectionsService:", err);
+                if (window.google && window.google.maps) {
+                    try {
+                        googleRoutes = await new Promise((resolve) => {
+                            const ds = new google.maps.DirectionsService();
+                            const request = {
+                                origin: new google.maps.LatLng(startGeocode.lat, startGeocode.lng),
+                                destination: new google.maps.LatLng(endGeocode.lat, endGeocode.lng),
+                                travelMode: google.maps.TravelMode[travelMode.toUpperCase()] || google.maps.TravelMode.DRIVING,
+                                provideRouteAlternatives: true
+                            };
+                            if (stopGeocode) {
+                                request.waypoints = [{
+                                    location: new google.maps.LatLng(stopGeocode.lat, stopGeocode.lng),
+                                    stopover: true
+                                }];
+                            }
+                            ds.route(request, (result, status) => {
+                                if (status === 'OK' && result && result.routes && result.routes.length > 0) {
+                                    const routesMapped = result.routes.map((gRoute, idx) => {
+                                        const path = gRoute.overview_path.map(p => [p.lat(), p.lng()]);
+                                        let totalDist = 0;
+                                        let totalTime = 0;
+                                        gRoute.legs.forEach(leg => {
+                                            totalDist += leg.distance.value;
+                                            totalTime += leg.duration.value;
+                                        });
+
+                                        return {
+                                            summary: gRoute.summary || `Route ${idx + 1}`,
+                                            distanceKm: totalDist / 1000,
+                                            timeMins: Math.round(totalTime / 60),
+                                            coords: path
+                                        };
+                                    });
+                                    resolve(routesMapped);
+                                } else {
+                                    resolve([]);
+                                }
+                            });
+                        });
+                    } catch (dsErr) {
+                        console.error("Client-side DirectionsService failed:", dsErr);
+                    }
+                }
             }
 
             let newBaseRoutes = [];
