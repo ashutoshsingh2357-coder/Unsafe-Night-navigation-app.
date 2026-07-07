@@ -90,6 +90,11 @@
     </style>
 </head>
 <body>
+    <script>
+        if (!localStorage.getItem("token") || !localStorage.getItem("user")) {
+            window.location.href = "/login";
+        }
+    </script>
     <div id="root"></div>
 
     <script>window.OPENWEATHER_API_KEY = "YOUR_OPENWEATHERMAP_API_KEY";</script>
@@ -108,6 +113,7 @@
         }, 100);
     };
     </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzQaywl-30IGmh-HgHR2F1kYlVfPj9lR4&libraries=places,visualization"></script>
 
     <script>
 let USE_GOOGLE_MAPS = true; // Will auto-disable if Google auth fails
@@ -236,6 +242,10 @@ const speakWarning = (status, hazards, lang) => {
     setTimeout(() => { window.speechSynthesis.speak(utterance); }, 800);
 };
 
+// ============================================================
+// 🤖 GOOGLE GEMINI AI INTEGRATION (Auto-Discovery Engine)
+// ============================================================
+
 // Cache for discovered working model
 let _workingModel = null;
 let _workingApiVersion = null;
@@ -243,60 +253,31 @@ let _workingApiVersion = null;
 // Discover available models from Google API
 const discoverModels = async (apiKey) => {
     const versions = ['v1beta', 'v1'];
-    let lastError = null;
     for (const ver of versions) {
         try {
             const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${apiKey}`);
-            let data;
-            try {
-                data = await res.json();
-            } catch(e) {
-                lastError = `HTTP ${res.status}: ${res.statusText}`;
-                continue;
-            }
-            if (data.error) {
-                lastError = data.error.message;
-                continue;
-            }
+            const data = await res.json();
             if (data.models && data.models.length > 0) {
                 // Filter models that support generateContent
                 const genModels = data.models.filter(m => 
                     m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent')
                 );
-                // Prefer stable flash models (fast + free), avoiding experimental/preview models
-                let preferred = genModels.filter(m => 
-                    m.name.includes('flash') && 
-                    !m.name.includes('preview') && 
-                    !m.name.includes('exp') && 
-                    !m.name.includes('experimental')
-                );
-                if (preferred.length === 0) {
-                    preferred = genModels.filter(m => m.name.includes('flash'));
-                }
-                if (preferred.length === 0) {
-                    preferred = genModels;
-                }
+                // Prefer flash models (fast + free), sorted by name descending (newest first)
+                const flashModels = genModels.filter(m => m.name.includes('flash'));
+                const preferred = flashModels.length > 0 ? flashModels : genModels;
                 // Sort to prefer newer models
                 preferred.sort((a, b) => b.name.localeCompare(a.name));
                 if (preferred.length > 0) {
+                    // Model name comes as "models/gemini-2.0-flash" — extract just "gemini-2.0-flash"
                     const modelId = preferred[0].name.replace('models/', '');
                     return { model: modelId, apiVersion: ver, allModels: preferred.map(m => m.name.replace('models/', '')) };
                 }
             }
         } catch(e) {
             console.warn(`Could not list models on ${ver}:`, e);
-            lastError = e.message;
         }
     }
-    // Fallback: If we got a specific error but it might still be a key restriction,
-    // we can return the default models, but we log the lastError
-    console.warn("Model discovery failed, using fallback models. Last error:", lastError);
-    return { 
-        model: 'gemini-2.0-flash', 
-        apiVersion: 'v1beta', 
-        allModels: ['gemini-2.0-flash', 'gemini-1.5-flash'],
-        discoveryError: lastError
-    };
+    return null;
 };
 
 // Try a single API call to a specific model
@@ -312,20 +293,13 @@ const tryGeminiCall = async (prompt, apiKey, model, apiVersion) => {
             })
         }
     );
-    let data;
-    try {
-        data = await res.json();
-    } catch(err) {
-        throw new Error(`HTTP Error ${res.status}: ${res.statusText}`);
-    }
-    if (data.error) {
-        throw new Error(data.error.message);
-    }
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
 };
 
 const callGemini = async (prompt) => {
-    const apiKey = localStorage.getItem('gemini_api_key') || window.GEMINI_API_KEY || '';
+    const apiKey = localStorage.getItem('gemini_api_key') || '';
     if (!apiKey) return null;
 
     // If we already found a working model, use it directly
@@ -1233,7 +1207,7 @@ const haversineDistance = (coords1, coords2) => {
     return R * c;
 };
 
-const App = ({ initialGeminiKey }) => {
+const App = () => {
     const [lang, setLang] = useState('en');
     const t = (key) => window.SafetyLogic.Translations[lang][key];
 
@@ -1278,7 +1252,7 @@ const App = ({ initialGeminiKey }) => {
     const screamContextRef = useRef(null);
 
     // 🤖 Gemini AI States
-    const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || initialGeminiKey || '');
+    const [geminiKey, setGeminiKey] = useState(localStorage.getItem('gemini_api_key') || '');
     const [profileSubView, setProfileSubView] = useState('menu');
     const [showGeminiSetup, setShowGeminiSetup] = useState(false);
     const [showAIChat, setShowAIChat] = useState(false);
@@ -2092,7 +2066,6 @@ const App = ({ initialGeminiKey }) => {
             callGemini(prompt).then(insight => {
                 setAiLoading(false);
                 if (insight) setAiInsight(insight);
-                else setAiInsight('⚠️ Failed to load AI safety analysis. Please check your Gemini API key in settings.');
             });
         } else if (!selectedRouteId) {
             setAiInsight('');
@@ -2544,8 +2517,27 @@ const App = ({ initialGeminiKey }) => {
                                     📡 {gpsStatus === 'live' ? 'Live GPS' : gpsStatus === 'ip' ? 'IP Estimate' : gpsStatus === 'detecting' ? 'Scanning GPS...' : 'GPS Failed'}
                                 </div>
                             </div>
-                            <div style={{fontSize: '0.7rem', background: 'rgba(0,0,0,0.5)', padding: '0.4rem 0.8rem', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid rgba(255,255,255,0.1)'}}>
-                                <span className="green-dot" style={{width: '6px', height: '6px'}}></span> {trustedContacts.length} {t('contacts')}
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <div style={{fontSize: '0.7rem', background: 'rgba(0,0,0,0.5)', padding: '0.4rem 0.8rem', borderRadius: '999px', display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid rgba(255,255,255,0.1)'}}>
+                                    <span className="green-dot" style={{width: '6px', height: '6px'}}></span> {trustedContacts.length} {t('contacts')}
+                                </div>
+                                <button onClick={() => {
+                                    localStorage.removeItem('token');
+                                    localStorage.removeItem('user');
+                                    window.location.href = '/login';
+                                }} style={{
+                                    fontSize: '0.72rem', 
+                                    background: 'rgba(239, 68, 68, 0.25)', 
+                                    border: '1px solid rgba(239, 68, 68, 0.5)', 
+                                    color: '#fca5a5', 
+                                    borderRadius: '999px', 
+                                    padding: '0.4rem 0.8rem', 
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease'
+                                }}>
+                                    🚪 Logout
+                                </button>
                             </div>
                         </div>
                         {/* Title and Subtitle */}
@@ -3426,29 +3418,7 @@ const App = ({ initialGeminiKey }) => {
 };
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
-
-async function initApp() {
-    try {
-        const res = await fetch('/api/config');
-        const config = await res.json();
-        
-        if (config.googleMapsApiKey) {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMapsApiKey}&libraries=places,visualization`;
-            script.async = true;
-            script.defer = true;
-            document.head.appendChild(script);
-        }
-
-        window.GEMINI_API_KEY = config.geminiApiKey;
-        root.render(<App initialGeminiKey={config.geminiApiKey} />);
-    } catch (error) {
-        console.error("Failed to load config", error);
-        root.render(<App />);
-    }
-}
-
-initApp();
+root.render(<App />);
     </script>
 </body>
 </html>

@@ -248,7 +248,9 @@ body {
 
 @media (max-width: 900px) {
   .results-layout {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 1.5rem;
   }
 }
 
@@ -431,7 +433,8 @@ body {
 
 /* Map View */
 .map-view {
-  min-height: 500px;
+  height: 520px;
+  min-height: 520px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -441,19 +444,17 @@ body {
 
 @media (max-width: 900px) {
   .map-view {
-    min-height: 400px;
+    height: 420px;
+    min-height: 420px;
   }
 }
 
 .map-container {
   flex: 1;
-  background: #111827; /* Darker background for CSS map */
+  height: 100%;
+  background: #111827;
   position: relative;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
 }
 
 /* Futuristic CSS Map Background Elements */
