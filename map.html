@@ -115,6 +115,7 @@
     </script>
 
     <script>
+window.USE_BACKEND_PROXY = true;
 let USE_GOOGLE_MAPS = true; // Will auto-disable if Google auth fails
 const Translations = {
     en: {
@@ -784,18 +785,9 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                 infoWinRef.current.open(map);
 
                 let address = null;
-                try {
-                    const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
-                    const data = await response.json();
-                    if (response.ok && data.status === 'OK' && data.results && data.results.length > 0) {
-                        address = data.results[0].formatted_address;
-                    } else {
-                        throw new Error("Proxy reverse geocode failed");
-                    }
-                } catch (err) {
-                    console.warn("Secure Reverse Geocoding failed, falling back to client-side Geocoder:", err);
+                const useClientSideReverseGeocoding = async () => {
                     if (window.google && window.google.maps) {
-                        address = await new Promise((resolve) => {
+                        return await new Promise((resolve) => {
                             const geocoder = new google.maps.Geocoder();
                             geocoder.geocode({ location: { lat, lng } }, (results, status) => {
                                 if (status === 'OK' && results && results.length > 0) {
@@ -805,6 +797,24 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                                 }
                             });
                         });
+                    }
+                    return null;
+                };
+
+                if (!window.USE_BACKEND_PROXY) {
+                    address = await useClientSideReverseGeocoding();
+                } else {
+                    try {
+                        const response = await fetch(`/api/reverse-geocode?lat=${lat}&lng=${lng}`);
+                        const data = await response.json();
+                        if (response.ok && data.status === 'OK' && data.results && data.results.length > 0) {
+                            address = data.results[0].formatted_address;
+                        } else {
+                            throw new Error("Proxy reverse geocode failed");
+                        }
+                    } catch (err) {
+                        console.warn("Secure Reverse Geocoding failed, falling back to client-side Geocoder:", err);
+                        address = await useClientSideReverseGeocoding();
                     }
                 }
 
@@ -933,28 +943,9 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                 // Call secure backend proxy for fallback directions drawing
                 (async () => {
                     let path = null;
-                    try {
-                        const wps = stc ? [stc] : [];
-                        const routeResp = await fetch('/api/routes', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                origin: { lat: sc[0], lng: sc[1] },
-                                destination: { lat: ec[0], lng: ec[1] },
-                                waypoints: wps,
-                                travelMode: travelMode
-                            })
-                        });
-                        const routeData = await routeResp.json();
-                        if (routeResp.ok && routeData.routes && routeData.routes.length > 0) {
-                            path = decodePolyline(routeData.routes[0].polyline.encodedPolyline).map(p => [p.lat, p.lng]);
-                        } else {
-                            throw new Error("Proxy routing failed");
-                        }
-                    } catch (err) {
-                        console.warn("Map fallback secure routing failed, trying client-side DirectionsService:", err);
+                    const useClientSideRouting = async () => {
                         if (window.google && window.google.maps) {
-                            path = await new Promise((resolve) => {
+                            return await new Promise((resolve) => {
                                 const ds = new google.maps.DirectionsService();
                                 const request = {
                                     origin: new google.maps.LatLng(sc[0], sc[1]),
@@ -975,6 +966,34 @@ const GoogleMap = ({ route, onReportClick, showHavens, showHotels, showHeatmap,
                                     }
                                 });
                             });
+                        }
+                        return null;
+                    };
+
+                    if (!window.USE_BACKEND_PROXY) {
+                        path = await useClientSideRouting();
+                    } else {
+                        try {
+                            const wps = stc ? [stc] : [];
+                            const routeResp = await fetch('/api/routes', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    origin: { lat: sc[0], lng: sc[1] },
+                                    destination: { lat: ec[0], lng: ec[1] },
+                                    waypoints: wps,
+                                    travelMode: travelMode
+                                })
+                            });
+                            const routeData = await routeResp.json();
+                            if (routeResp.ok && routeData.routes && routeData.routes.length > 0) {
+                                path = decodePolyline(routeData.routes[0].polyline.encodedPolyline).map(p => [p.lat, p.lng]);
+                            } else {
+                                throw new Error("Proxy routing failed");
+                            }
+                        } catch (err) {
+                            console.warn("Map fallback secure routing failed, trying client-side DirectionsService:", err);
+                            path = await useClientSideRouting();
                         }
                     }
 
@@ -1222,21 +1241,7 @@ const geocodeAddress = async (query, biasCoords = null) => {
         };
     }
 
-    try {
-        const response = await fetch(`/api/geocode?address=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        if (data.status === 'OK' && data.results && data.results.length > 0) {
-            const loc = data.results[0].geometry.location;
-            return {
-                lat: loc.lat,
-                lng: loc.lng,
-                name: data.results[0].formatted_address.split(',')[0]
-            };
-        } else {
-            throw new Error("Proxy geocoding failed");
-        }
-    } catch (e) {
-        console.warn("Secure Geocoding failed, falling back to client-side Geocoder:", e);
+    const useClientSideGeocoding = () => {
         if (window.google && window.google.maps) {
             return new Promise((resolve) => {
                 try {
@@ -1259,6 +1264,29 @@ const geocodeAddress = async (query, biasCoords = null) => {
                 }
             });
         }
+        return null;
+    };
+
+    if (!window.USE_BACKEND_PROXY) {
+        return await useClientSideGeocoding();
+    }
+
+    try {
+        const response = await fetch(`/api/geocode?address=${encodeURIComponent(query)}`);
+        const data = await response.json();
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+            const loc = data.results[0].geometry.location;
+            return {
+                lat: loc.lat,
+                lng: loc.lng,
+                name: data.results[0].formatted_address.split(',')[0]
+            };
+        } else {
+            throw new Error("Proxy geocoding failed");
+        }
+    } catch (e) {
+        console.warn("Secure Geocoding failed, falling back to client-side Geocoder:", e);
+        return await useClientSideGeocoding();
     }
     return null;
 };
@@ -2252,40 +2280,10 @@ const App = ({ initialGeminiKey }) => {
 
             // ====== GOOGLE DIRECTIONS API — Secure Backend Proxy ======
             let googleRoutes = [];
-            try {
-                const wps = stopGeocode ? [{ lat: stopGeocode.lat, lng: stopGeocode.lng }] : [];
-                const routeResp = await fetch('/api/routes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        origin: { lat: startGeocode.lat, lng: startGeocode.lng },
-                        destination: { lat: endGeocode.lat, lng: endGeocode.lng },
-                        waypoints: wps,
-                        travelMode: travelMode
-                    })
-                });
-                const routeData = await routeResp.json();
-                if (routeResp.ok && routeData.routes && routeData.routes.length > 0) {
-                    googleRoutes = routeData.routes.map((gRoute, idx) => {
-                        let totalDist = gRoute.distanceMeters;
-                        let totalTime = parseInt(gRoute.duration.replace('s', ''), 10);
-                        const path = decodePolyline(gRoute.polyline.encodedPolyline);
-                        
-                        return {
-                            summary: gRoute.summary || `Route ${idx + 1}`,
-                            distanceKm: totalDist / 1000,
-                            timeMins: Math.round(totalTime / 60),
-                            coords: path.map(p => [p.lat, p.lng])
-                        };
-                    });
-                } else {
-                    throw new Error("Proxy directions failed");
-                }
-            } catch (err) {
-                console.warn("Secure directions proxy request failed, falling back to client-side DirectionsService:", err);
+            const useClientSideDirections = async () => {
                 if (window.google && window.google.maps) {
                     try {
-                        googleRoutes = await new Promise((resolve) => {
+                        return await new Promise((resolve) => {
                             const ds = new google.maps.DirectionsService();
                             const request = {
                                 origin: new google.maps.LatLng(startGeocode.lat, startGeocode.lng),
@@ -2326,6 +2324,45 @@ const App = ({ initialGeminiKey }) => {
                     } catch (dsErr) {
                         console.error("Client-side DirectionsService failed:", dsErr);
                     }
+                }
+                return [];
+            };
+
+            if (!window.USE_BACKEND_PROXY) {
+                googleRoutes = await useClientSideDirections();
+            } else {
+                try {
+                    const wps = stopGeocode ? [{ lat: stopGeocode.lat, lng: stopGeocode.lng }] : [];
+                    const routeResp = await fetch('/api/routes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            origin: { lat: startGeocode.lat, lng: startGeocode.lng },
+                            destination: { lat: endGeocode.lat, lng: endGeocode.lng },
+                            waypoints: wps,
+                            travelMode: travelMode
+                        })
+                    });
+                    const routeData = await routeResp.json();
+                    if (routeResp.ok && routeData.routes && routeData.routes.length > 0) {
+                        googleRoutes = routeData.routes.map((gRoute, idx) => {
+                            let totalDist = gRoute.distanceMeters;
+                            let totalTime = parseInt(gRoute.duration.replace('s', ''), 10);
+                            const path = decodePolyline(gRoute.polyline.encodedPolyline);
+                            
+                            return {
+                                summary: gRoute.summary || `Route ${idx + 1}`,
+                                distanceKm: totalDist / 1000,
+                                timeMins: Math.round(totalTime / 60),
+                                coords: path.map(p => [p.lat, p.lng])
+                            };
+                        });
+                    } else {
+                        throw new Error("Proxy directions failed");
+                    }
+                } catch (err) {
+                    console.warn("Secure directions proxy request failed, falling back to client-side DirectionsService:", err);
+                    googleRoutes = await useClientSideDirections();
                 }
             }
 
@@ -3545,8 +3582,10 @@ async function initApp() {
         const config = await res.json();
         mapsKey = config.googleMapsApiKey;
         geminiKey = config.geminiApiKey;
+        window.USE_BACKEND_PROXY = true;
     } catch (error) {
         console.warn("Could not load config from backend proxy. Using obfuscated fallback keys for static hosting.", error);
+        window.USE_BACKEND_PROXY = false;
         try {
             mapsKey = atob(MAPS_FALLBACK_OBFUSCATED);
             geminiKey = atob(GEMINI_FALLBACK_OBFUSCATED);
