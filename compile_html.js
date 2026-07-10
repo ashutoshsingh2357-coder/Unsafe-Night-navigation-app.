@@ -3,13 +3,14 @@ const path = require('path');
 const babel = require('@babel/core');
 
 function optimizeAndCompile(filename) {
-    const filePath = path.join(__dirname, filename);
-    if (!fs.existsSync(filePath)) {
-        console.warn(`File ${filename} does not exist, skipping.`);
+    const srcPath = path.join(__dirname, 'src', filename);
+    const destPath = path.join(__dirname, filename);
+    if (!fs.existsSync(srcPath)) {
+        console.warn(`File src/${filename} does not exist, skipping.`);
         return;
     }
     
-    let html = fs.readFileSync(filePath, 'utf8');
+    let html = fs.readFileSync(srcPath, 'utf8');
 
     // Step 1: Inject window.USE_BACKEND_PROXY optimization
     console.log(`Optimizing backend proxy calls in ${filename}...`);
@@ -467,7 +468,7 @@ function optimizeAndCompile(filename) {
     const startIndex = html.indexOf(babelStart);
     if (startIndex === -1) {
         console.log(`No <script type="text/babel"> found in ${filename}, skipping compilation.`);
-        fs.writeFileSync(filePath, html, 'utf8');
+        fs.writeFileSync(destPath, html, 'utf8');
         return;
     }
 
@@ -502,7 +503,7 @@ function optimizeAndCompile(filename) {
     html = html.replace('<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n', '');
     html = html.replace('<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>', '');
 
-    fs.writeFileSync(filePath, html, 'utf8');
+    fs.writeFileSync(destPath, html, 'utf8');
     console.log(`Successfully compiled ${filename} to production-ready precompiled HTML!`);
 }
 
